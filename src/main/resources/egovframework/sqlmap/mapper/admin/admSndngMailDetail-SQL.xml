@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="admSndngMailDetailDAO">
+
+	<!-- 발송메일 상세 조회 -->
+	<select id="admSndngMailDetailDAO.selectSndngMail" parameterType="vestap.adm.ems.service.AdmSndngMailVO" resultType="vestap.adm.ems.service.AdmSndngMailVO">
+	/* admSndngMailDetailDAO.selectSndngMail */
+		<![CDATA[
+		SELECT 
+		       mssage_id         AS mssageId,
+		       sndr              AS sndr,
+		       rcver_id          AS rcverId,
+		       rcver_nm          AS rcverNm,
+		       rcver             AS rcver,
+		       sndng_result_code AS sndngResultCode,
+		       CASE
+			        WHEN sndng_result_code = 'R' THEN '성공'
+			        WHEN sndng_result_code = 'C' THEN '성공'
+			        WHEN sndng_result_code = 'F' THEN '실패'
+		       ELSE sndng_result_code
+		        END sndngResultNm,     
+		       sj                AS sj,
+		       email_cn          AS emailCn,
+		       TO_CHAR(( dsptch_dt ), 'YYYY년 MM월 DD일 AM HH:MI') AS sndngDe
+		  FROM COMTHEMAILDSPTCHMANAGE
+		 WHERE mssage_id = #{mssageId}
+		]]>
+	</select>
+
+	<!--  발송메일 삭제 -->
+	<delete id="admSndngMailDetailDAO.deleteSndngMail" parameterType="vestap.adm.ems.service.AdmSndngMailVO">
+		<![CDATA[
+		DELETE FROM COMTHEMAILDSPTCHMANAGE
+		WHERE mssage_id = #{mssageId}
+		]]>
+	</delete>
+	
+</mapper>

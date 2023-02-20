@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cumulative">
+
+	<select id="selectOptionlist" parameterType="EgovMap"
+		resultType="EgovMap">
+		<![CDATA[
+			SELECT
+				CODE_ID
+				,CODE_NM
+			FROM 
+				REF_CODE
+			WHERE
+				CODE_GROUP = #{codeGroup}
+		]]>
+	</select>
+
+	<select id="selectItemlist" parameterType="EgovMap"
+		resultType="EgovMap">
+		<![CDATA[
+			SELECT
+				ITEM_ID
+				,ITEM_NM
+			FROM 
+				ITEM_LIST 
+			WHERE
+				FIELD_ID = #{field}
+			ORDER BY
+				ITEM_ID ASC
+		]]>
+	</select>
+	
+	<!-- 테이블 명 수정 필요 -->
+	<select id="selectSidoList" resultType="EgovMap">
+		<![CDATA[
+			SELECT
+				DISTRICT_CD
+				,DISTRICT_NM
+			FROM 
+				DISTRICT_SD  
+			ORDER BY 
+				DISTRICT_CD ASC
+		]]>
+	</select>
+	
+	<select id="selectSigungulist" parameterType="EgovMap"
+		resultType="EgovMap">
+		<![CDATA[
+			SELECT
+				SUBSTR(DISTRICT_CD, 0, 5) AS DISTRICT_CD , DISTRICT_NM
+			FROM 
+				DISTRICT_SGG 
+			WHERE
+				DISTRICT_CD LIKE #{sidoCode}||'%'
+			ORDER BY
+				DISTRICT_CD ASC
+		]]>
+	</select>
+	<!-- <select id="selectCumulativeList" parameterType="EgovMap" resultType="EgovMap">
+		SELECT * FROM 
+		(
+			select 
+				a.indi_id, 
+				a.sector_id,
+				a.sector2_id,
+				b.indi_nm
+			from 
+				cumulative_list as a
+			left outer join 
+				indicator_list as b
+			on b.indi_id = a.indi_id
+		) A
+		<if test="keywordList != null">
+			WHERE
+						<foreach collection="keywordList" item="item" separator="OR">
+						(
+							LOWER(REPLACE(indi_nm,' ','')) LIKE '%' || #{item} || '%'
+						)
+						</foreach>
+			</if>
+		ORDER BY INDI_ID ASC
+	</select> -->
+	
+	<!-- 20191220 누적현황보고 지표목록 SQL 수정 => CUMULATIVE_LIST 에서 INDICATOR_LIST 사용 -->
+	<select id="selectCumulativeList" parameterType="EgovMap" resultType="EgovMap">
+		SELECT * FROM 
+		(
+			
+			SELECT 
+				A.INDI_ID,
+				A.SECTOR_ID, 
+				A.SECTOR2_ID, 
+				B.INDI_NM
+			FROM 
+				ITEM_INDICATOR A, INDICATOR_LIST B
+			WHERE 
+				A.INDI_ID = B.INDI_ID AND
+				SECTOR2_ID IS NOT NULL
+			GROUP BY
+				A.INDI_ID, A.SECTOR_ID, A.SECTOR2_ID, B.INDI_NM 
+		) A
+		<if test="keywordList != null">
+			WHERE
+				<foreach collection="keywordList" item="item" separator="OR">
+				(
+					LOWER(REPLACE(indi_nm,' ','')) LIKE '%' || #{item} || '%'
+				)
+				</foreach>
+		</if>
+		ORDER BY INDI_ID ASC
+	</select>
+	
+	<!-- 20210628 누적현황보고 지표데이터 테이블 수정 => indi_fc001_01_10_data 에서 INDICATOR_DATA 사용 -->
+	<select id="selectCumulativeTotal" parameterType="EgovMap" resultType="EgovMap">
+		select district_cd,indi_year,sum(indi_first)as indi_first, sum(indi_second) as indi_second
+		from(
+			select district_cd, indi_year,
+			case indi_id when #{getIndi1} then indi_val else null end as indi_first,
+			case indi_id when #{getIndi2} then indi_val else null end as indi_second
+			from(
+				select indi_id, district_cd, indi_val, indi_year
+				from(
+					SELECT * FROM INDICATOR_DATA
+					WHERE DISTRICT_CD LIKE #{sidoCode} AND INDI_ID IN (#{getIndi1},#{getIndi2}) 
+					)a 
+				)b
+			)c group by district_cd,indi_year
+			order by indi_year desc, 1 asc, 2 asc
+	</select>
+	
+	<select id="selectCumulativeFindIndiNm" parameterType="EgovMap" resultType="EgovMap">
+		SELECT * FROM 
+		(
+			select 
+				a.indi_id, 
+				b.indi_nm,
+				b.indi_unit
+			from 
+				cumulative_list as a
+			left outer join 
+				indicator_list as b
+			on b.indi_id = a.indi_id
+			
+		) A 
+		where indi_id in (#{getIndi1},#{getIndi2})
+		ORDER BY
+		  case indi_id
+		  when #{getIndi1} then 1
+		  when #{getIndi2} then 2
+		  else 5
+		  end
+	</select>
+	
+	<select id="selectCumulativeMetaInfo" parameterType="EgovMap" resultType="EgovMap">
+		select * from 
+		( 
+			select a.indi_id, a.indi_nm,a.indi_unit,a.indi_account,a.indi_construct,a.indi_construct_meth, b.code_nm as indi_large from
+				indicator_list a
+			LEFT outer join ref_code b 
+			on a.ipcc_large = b.code_id
+			where a.indi_id= #{indiId}
+		)A,
+		( 
+			select  b.code_nm as indi_small from
+				indicator_list a
+			LEFT outer join ref_code b 
+			on a.ipcc_small = b.code_id
+			where a.indi_id= #{indiId}
+		)B, 
+		( 
+			select  b.code_nm as indi_group from
+				indicator_list a
+			LEFT outer join ref_code b 
+			on a.indi_group = b.code_id
+			where a.indi_id= #{indiId}
+		)C,
+		( 
+			select  b.code_nm as indi_construct_kor from
+				indicator_list a
+			LEFT outer join ref_code b 
+			on a.indi_construct = b.code_id
+			where a.indi_id= #{indiId}
+		)D
+	</select>
+	<select id="selectCumulativeRelation" parameterType="EgovMap" resultType="EgovMap">
+		select c.*,d.code_nm as code_kor_nm from 
+		(
+			select a.*,b.item_nm as item_kor_nm, b.ce_weight, b.cs_weight, b.aa_weight  from item_indicator a
+			left outer join item_list b
+			on a.item_id = b.item_id
+			where indi_id=#{indiId}
+		)c
+		left outer join ref_code d
+		on c.sector_id = d.code_id
+
+	</select>
+	<select id="selectCumulativeComment" parameterType="EgovMap" resultType="EgovMap">
+		select * from (
+			select 
+				distinct b.*,
+				substr(b.district_cd, 1, 2) as subdistrict_cd
+			from 
+				indi_fc001_11_20_data a 
+			left outer join 
+				cumulative_comment b 
+			on 
+				a.indi_id=b.indi_id 
+			and a.district_cd = b.district_cd 
+			)c
+		where 
+			district_cd LIKE #{sidoCode} ||'%' 
+			and indi_id = #{indiId} 
+			<if test="sidoCodeLng > 2">
+			or subdistrict_cd = district_cd and indi_id = #{indiId}
+			</if> 
+	</select>
+</mapper>

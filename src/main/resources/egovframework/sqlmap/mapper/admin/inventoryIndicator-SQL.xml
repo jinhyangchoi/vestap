@@ -1,0 +1,1213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="inventoryIndicator">
+
+	<select id="getIndicatorGroup" resultType="hashMap">
+		
+		SELECT
+			CODE_ID,
+			CODE_NM
+		FROM
+			REF_CODE
+		WHERE
+			CODE_GROUP = 'INDICATOR_GROUP'
+			OR
+			CODE_GROUP = 'SCENARIO_GROUP'
+		
+	</select>
+	
+	<select id="getIndicatorList" parameterType="map" resultType="hashMap">
+		WITH INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT
+					INDI_ID,
+					INDI_NM,
+					INDI_UNIT,
+					INDI_ACCOUNT,
+					IPCC_LARGE,
+					IPCC_SMALL,
+					INDI_CONSTRUCT,
+					INDI_GROUP,
+					USER_ID,
+					TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2
+				FROM
+					INDICATOR_LIST_USER
+				<if test="startdate != NULL &amp;&amp; enddate != NULL">
+				WHERE
+					ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				) A
+		),
+		
+		INDI_FIELD_SET AS(
+			SELECT
+				*
+			FROM
+				INDI_LIST_SET
+			<if test="field_id != 'all'">
+			WHERE
+				INDI_ID IN
+				(
+				SELECT
+					DISTINCT A.INDI_ID
+				FROM
+					ITEM_INDICATOR_USER A
+				INNER JOIN
+					(
+					SELECT
+						*
+					FROM
+						ITEM_LIST_USER
+					WHERE
+						<if test="field_id != 'all'">
+						FIELD_ID = #{field_id}
+							<!-- FIELD ID 를 선택 했을 경우에만 항목 검색이 가능 -->
+							<if test="item_id != 'all'">
+							AND ITEM_ID = #{item_id}
+							</if>
+						</if>
+						
+					) B
+				ON
+					A.ITEM_ID = B.ITEM_ID
+				)
+			</if>
+		)
+		SELECT
+			*,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.INDI_GROUP) AS INDI_GROUP_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_LARGE) AS IPCC_LARGE_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_SMALL) AS IPCC_SMALL_NM,
+			(SELECT DISTRICT_NM FROM (
+					SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = E.USER_DIST
+					UNION ALL
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = E.USER_DIST)D 
+					WHERE D.DISTRICT_CD = E.USER_DIST) AS DISTRICT_NM
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_REGDATE2 ASC) AS RNUM,
+				*
+			FROM
+				(
+				SELECT 
+					D.*, B.USER_DIST 
+				FROM 
+					INDI_FIELD_SET D
+				JOIN USER_INFO B
+				ON D.USER_ID = B.USER_ID
+				WHERE
+					1 = 1
+				<if test="ipcc_1 != 'all'">
+				AND IPCC_LARGE = #{ipcc_1}
+					<!-- IPCC 1을 선택 했을 때만 IPCC 2 선택 가능 -->
+					<if test="ipcc_2 != 'all'">
+					AND IPCC_SMALL = #{ipcc_2}
+					</if>
+				</if>
+				) A
+			WHERE
+				1=1
+			<if test="keywordList != null">
+				and (
+				<foreach collection="keywordList" item="item" separator="OR">
+					INDI_NM LIKE '%' || #{item} || '%'
+				</foreach>
+				)
+			</if>
+				and USER_DIST LIKE '%' || #{sidoCode} || '%'
+		ORDER BY RNUM DESC 
+			LIMIT #{endRow}
+			) E
+		OFFSET #{startRow}
+		
+	</select>
+	
+	<select id="getIndicatorListTotCnt" parameterType="map" resultType="int">
+		WITH INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT
+					INDI_ID,
+					INDI_NM,
+					INDI_UNIT,
+					INDI_ACCOUNT,
+					IPCC_LARGE,
+					IPCC_SMALL,
+					INDI_CONSTRUCT,
+					INDI_GROUP,
+					USER_ID,
+					TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2
+				FROM
+					INDICATOR_LIST_USER
+				
+				) A
+		),
+		
+		INDI_FIELD_SET AS(
+			SELECT
+				*
+			FROM
+				INDI_LIST_SET
+			<if test="field_id != 'all'">
+			WHERE
+				INDI_ID IN
+				(
+				SELECT
+					DISTINCT A.INDI_ID
+				FROM
+					ITEM_INDICATOR_USER A
+				INNER JOIN
+					(
+					SELECT
+						*
+					FROM
+						ITEM_LIST_USER
+					WHERE
+						<if test="field_id != 'all'">
+						FIELD_ID = #{field_id}
+							<!-- FIELD ID 를 선택 했을 경우에만 항목 검색이 가능 -->
+							<if test="item_id != 'all'">
+							AND ITEM_ID = #{item_id}
+							</if>
+						</if>
+						
+					) B
+				ON
+					A.ITEM_ID = B.ITEM_ID
+				)
+			</if>
+		)
+		SELECT
+			count(*)
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY INDI_ID DESC) AS RNUM,
+				*
+			FROM
+				(
+				SELECT 
+					D.*, B.USER_DIST 
+				FROM 
+					INDI_FIELD_SET D
+				JOIN USER_INFO B
+				ON D.USER_ID = B.USER_ID
+				WHERE
+					1 = 1
+				<if test="ipcc_1 != 'all'">
+				AND IPCC_LARGE = #{ipcc_1}
+					<!-- IPCC 1을 선택 했을 때만 IPCC 2 선택 가능 -->
+					<if test="ipcc_2 != 'all'">
+					AND IPCC_SMALL = #{ipcc_2}
+					</if>
+				</if>
+				) A
+			WHERE
+				1=1
+			<if test="keywordList != null">
+				and (
+				<foreach collection="keywordList" item="item" separator="OR">
+					INDI_NM LIKE '%' || #{item} || '%'
+				</foreach>
+				)
+			</if>
+				and USER_DIST LIKE '%' || #{sidoCode} || '%'
+			ORDER BY rnum DESC
+			) E
+		
+	</select>
+	
+	<select id="getIndicatorListInfo" parameterType="map" resultType="hashMap">
+		SELECT
+			*,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = A.IPCC_LARGE) AS IPCC_LARGE_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = A.IPCC_SMALL) AS IPCC_SMALL_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = A.INDI_CONSTRUCT) AS INDI_CONSTRUCT_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = A.INDI_GROUP) AS INDI_GROUP_NM,
+			(SELECT array_to_string(array_agg( FIELD_NM ), ', ') AS FIELD_NM FROM (SELECT DISTINCT (SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = FIELD_ID) AS FIELD_NM 
+				FROM ITEM_LIST_USER 
+				WHERE ITEM_ID IN (SELECT ITEM_ID FROM ITEM_INDICATOR_USER WHERE INDI_ID LIKE #{indi_id}))Z)
+		FROM INDICATOR_LIST_USER A
+		WHERE
+			INDI_ID = #{indi_id}
+	</select>
+	
+	<select id="getIndicatorDataInfo" parameterType="map" resultType="hashMap">
+		WITH INDI_DATA_SET AS(
+			SELECT
+				*
+			FROM
+				INDICATOR_DATA_USER A
+			WHERE
+				INDI_ID = #{indi_id}
+				<!-- AND
+				DISTRICT_CD LIKE #{district_info} || '%' -->
+		),
+		INDI_DISTRICT_SET AS(
+			SELECT
+				*
+				<choose>
+					<when test="tableCategory == 'emd'">
+					,(SELECT DISTRICT_NM FROM DISTRICT_EMD WHERE DISTRICT_CD = A.DISTRICT_CD) AS DISTRICT_NM
+					</when>
+					<when test="tableCategory == 'sgg'">
+					,(SELECT DISTRICT_NM FROM DISTRICT_SGG WHERE DISTRICT_CD = A.DISTRICT_CD) AS DISTRICT_NM
+					</when>
+				</choose>
+			FROM
+			<choose>
+				<when test="tableCategory == 'emd'">
+				(
+				SELECT
+					INDI_ID,
+					DISTRICT_CD,
+					INDI_VAL
+				FROM
+					INDI_DATA_SET
+				) A
+				</when>
+				<when test="tableCategory == 'sgg'">
+				(
+				SELECT
+					INDI_ID,
+					DISTRICT_CD,
+					SUM(INDI_VAL) AS INDI_VAL
+				FROM
+					(
+					SELECT
+						INDI_ID,
+						SUBSTR(DISTRICT_CD, 1, 5) AS DISTRICT_CD,
+						INDI_VAL,
+						INDI_YEAR
+					FROM
+						INDI_DATA_SET
+					) B
+				GROUP BY
+					INDI_ID,
+					DISTRICT_CD
+				) A
+				</when>
+			</choose>
+		)
+		<choose>
+			<when test="download == null">
+				SELECT
+					*
+				FROM
+					(
+					SELECT
+						ROW_NUMBER() OVER(ORDER BY INDI_VAL DESC) AS RNUM,
+						*
+					FROM
+						INDI_DISTRICT_SET
+					LIMIT #{endRow}
+					) A
+				OFFSET #{startRow}
+			</when>
+			<otherwise>
+				SELECT
+					ROW_NUMBER() OVER(ORDER BY INDI_VAL DESC) AS RNUM,
+					*
+				FROM
+					INDI_DISTRICT_SET
+			</otherwise>
+		</choose>
+		
+	</select>
+	
+	
+	
+	
+	<select id="getIndicatorDataInfoTotCnt" parameterType="map" resultType="int">
+		WITH INDI_DATA_SET AS(
+			SELECT
+				*
+			FROM
+				INDICATOR_DATA_USER A
+			WHERE
+				INDI_ID = #{indi_id}
+				<!-- AND
+				DISTRICT_CD LIKE #{district_info} || '%' -->
+		),
+		INDI_DISTRICT_SET AS(
+			SELECT
+				*
+			FROM
+			<choose>
+				<when test="tableCategory == 'emd'">
+				(
+				SELECT
+					INDI_ID,
+					DISTRICT_CD,
+					INDI_VAL
+				FROM
+					INDI_DATA_SET
+				) A
+				</when>
+				<when test="tableCategory == 'sgg'">
+				(
+				SELECT
+					INDI_ID,
+					DISTRICT_CD,
+					SUM(INDI_VAL) AS INDI_VAL
+				FROM
+					(
+					SELECT
+						INDI_ID,
+						SUBSTR(DISTRICT_CD, 1, 5) AS DISTRICT_CD,
+						INDI_VAL,
+						INDI_YEAR
+					FROM
+						INDI_DATA_SET
+					) B
+				GROUP BY
+					INDI_ID,
+					DISTRICT_CD
+				) A
+				</when>
+			</choose>
+		)
+		SELECT
+			COUNT(*)
+		FROM
+			INDI_DISTRICT_SET
+	</select>
+	
+	<select id="getDistrictSd" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			DISTRICT_SD
+	</select>
+	
+	<select id="getDistrictSgg" parameterType="map" resultType="hashMap">
+		SELECT
+			SUBSTR(DISTRICT_CD, 0, 5) AS DISTRICT_CD , DISTRICT_NM
+		FROM
+			DISTRICT_SGG
+		WHERE
+			DISTRICT_CD LIKE #{param} || '%'
+	</select>
+	
+	<select id="getIndicatorItem" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY FIELD_ID) AS RNUM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = FIELD_ID) AS FIELD_NM_KOR,
+				*
+			FROM
+				(
+				SELECT
+					A.*
+				FROM
+					ITEM_LIST_USER A
+				INNER JOIN
+					(
+					SELECT
+						DISTINCT ITEM_ID
+					FROM
+						ITEM_INDICATOR_USER
+					WHERE
+						INDI_ID = #{indi_id}
+					) B
+				ON
+					A.ITEM_ID = B.ITEM_ID
+				) C
+			LIMIT #{endRow}
+			) D
+		OFFSET #{startRow}
+		
+	</select>
+	
+	<select id="getIndicatorItemTotCnt" parameterType="map" resultType="int">SELECT
+	COUNT(*)
+	FROM
+	ITEM_LIST_USER A
+	INNER JOIN
+	(
+	SELECT
+	DISTINCT ITEM_ID
+	FROM
+	ITEM_INDICATOR_USER
+	WHERE
+	INDI_ID = #{indi_id}
+	) B
+	ON
+	A.ITEM_ID = B.ITEM_ID
+		
+	</select>
+	
+	<select id="getDistrictSdInfo" parameterType="String" resultType="hashMap">
+		SELECT * FROM DISTRICT_SD WHERE DISTRICT_CD = #{_parameter}
+	</select>
+	
+	<select id="getDistrictSggInfo" parameterType="String" resultType="hashMap">
+		SELECT * FROM DISTRICT_SGG WHERE DISTRICT_CD = #{_parameter}||'0'
+	</select>
+	
+	<select id="getDistrictEmdInfo" parameterType="String" resultType="hashMap">
+		SELECT * FROM DISTRICT_Emd WHERE DISTRICT_CD = #{_parameter}
+	</select>
+	
+	<select id="areaStatisticsList111" parameterType="map" resultType="hashMap">
+		SELECT
+				(SELECT DISTRICT_NM_UNION FROM (
+					SELECT DISTRICT_CD,DISTRICT_NM
+					,CASE SUBSTR(DISTRICT_CD,1,2) WHEN '11' THEN '서울특별시'
+					 WHEN '21' THEN '부산광역시'
+					 WHEN '22' THEN '대구광역시'
+					 WHEN '23' THEN '인천광역시'
+					 WHEN '24' THEN '광주광역시'
+					 WHEN '25' THEN '대전광역시'
+					 WHEN '26' THEN '울산광역시'
+					 WHEN '29' THEN '세종특별자치시'
+					 WHEN '31' THEN '경기도'
+					 WHEN '32' THEN '강원도'
+					 WHEN '33' THEN '충청북도'
+					 WHEN '34' THEN '충청남도'
+					 WHEN '35' THEN '전라북도'
+					 WHEN '36' THEN '전라남도'
+					 WHEN '37' THEN '경상북도'
+					 WHEN '38' THEN '경상남도'
+					 WHEN '39' THEN '제주특별자치도'
+					END AS DISTRICT_NM_UNION
+					FROM DISTRICT_SD WHERE DISTRICT_CD = C.USER_DIST
+					
+					UNION ALL
+					
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					,CASE SUBSTR(A.DISTRICT_CD,1,2) WHEN '11' THEN '서울특별시'
+					 WHEN '21' THEN '부산광역시'
+					 WHEN '22' THEN '대구광역시'
+					 WHEN '23' THEN '인천광역시'
+					 WHEN '24' THEN '광주광역시'
+					 WHEN '25' THEN '대전광역시'
+					 WHEN '26' THEN '울산광역시'
+					 WHEN '29' THEN '세종특별자치시'
+					 WHEN '31' THEN '경기도'
+					 WHEN '32' THEN '강원도'
+					 WHEN '33' THEN '충청북도'
+					 WHEN '34' THEN '충청남도'
+					 WHEN '35' THEN '전라북도'
+					 WHEN '36' THEN '전라남도'
+					 WHEN '37' THEN '경상북도'
+					 WHEN '38' THEN '경상남도'
+					 WHEN '39' THEN '제주특별자치도'
+					END AS DISTRICT_NM_UNION
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = C.USER_DIST)D WHERE D.DISTRICT_CD = C.USER_DIST)
+				AS DISTRICT_NM_UNION
+				,COUNT(*) AS TOTAL
+			FROM
+				(
+					SELECT 
+						D.*, B.USER_DIST 
+					FROM 
+						INDICATOR_LIST_USER D
+					JOIN USER_INFO B
+					ON 
+						D.USER_ID = B.USER_ID
+					) C JOIN DISTRICT_SD SD ON SUBSTR(C.USER_DIST,1,2)=SD.DISTRICT_CD
+		WHERE SUBSTR(C.USER_DIST,1,2) = SD.DISTRICT_CD
+		GROUP BY DISTRICT_NM_UNION
+		ORDER BY DISTRICT_NM_UNION ASC
+	</select>
+	
+	<!-- <select id="areaStatisticsList" parameterType="map" resultType="hashMap">
+		WITH INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT
+					INDI_ID,
+					INDI_NM,
+					INDI_UNIT,
+					INDI_ACCOUNT,
+					IPCC_LARGE,
+					IPCC_SMALL,
+					INDI_CONSTRUCT,
+					INDI_GROUP,
+					USER_ID,
+					TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2
+				FROM
+					INDICATOR_LIST_USER
+				<if test="startdate != '' &amp;&amp; enddate != ''">
+				WHERE
+					ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				) A
+		),
+		
+		INDI_FIELD_SET AS(
+			SELECT
+				*
+			FROM
+				INDI_LIST_SET
+			<if test="field != 'all'">
+			WHERE
+				INDI_ID IN
+				(
+				SELECT
+					DISTINCT A.INDI_ID
+				FROM
+					ITEM_INDICATOR_USER A
+				INNER JOIN
+					(
+					SELECT
+						*
+					FROM
+						ITEM_LIST_USER
+					WHERE
+						<if test="field != 'all'">
+						FIELD_ID = #{field}
+						</if>
+						
+					) B
+				ON
+					A.ITEM_ID = B.ITEM_ID
+				)
+			</if>
+		)
+		SELECT (SELECT DISTRICT_CD FROM DISTRICT_SD X WHERE X.DISTRICT_NM = DISTRICT_NM_UNION) AS DISTRICT_CD, DISTRICT_NM_UNION, TOTAL FROM(
+		SELECT DISTRICT_NM_UNION, SUM(TOTAL) AS TOTAL FROM(
+		SELECT COALESCE(DISTRICT_NM,'기타') AS DISTRICT_NM_UNION, TOTAL
+		FROM(
+			SELECT DISTRICT_CD,SPLIT_PART(DISTRICT_NM,' ',1) AS DISTRICT_NM_UNION, COUNT(*) AS TOTAL
+			FROM (
+			SELECT
+				*,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.INDI_GROUP) AS INDI_GROUP_NM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_LARGE) AS IPCC_LARGE_NM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_SMALL) AS IPCC_SMALL_NM,
+				USER_DIST AS DISTRICT_CD,
+				(SELECT DISTRICT_NM FROM (
+						SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = E.USER_DIST
+						UNION ALL
+						SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+						FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = E.USER_DIST)D 
+						WHERE D.DISTRICT_CD = E.USER_DIST) AS DISTRICT_NM
+			FROM
+				(
+				SELECT
+					ROW_NUMBER() OVER(ORDER BY ITEM_REGDATE2 ASC) AS RNUM,
+					*
+				FROM
+					(
+					SELECT 
+						D.*, B.USER_DIST 
+					FROM 
+						INDI_FIELD_SET D
+					JOIN USER_INFO B
+					ON D.USER_ID = B.USER_ID
+					WHERE
+						1 = 1
+					) A
+				WHERE
+					1=1
+				<if test="keyword != null">
+					AND INDI_NM LIKE '%' || #{keyword} || '%'
+				</if>
+					<choose>
+						<when test="sido !=0">
+							AND USER_DIST LIKE #{sido} || '%'
+						</when>
+						<otherwise>
+							AND USER_DIST LIKE '' || '%'
+						</otherwise>
+					</choose>
+			ORDER BY RNUM DESC 
+				) E )B GROUP BY DISTRICT_NM ORDER 
+			BY 1 ASC) BASE)G
+			GROUP BY DISTRICT_NM_UNION)SD 
+			ORDER BY DISTRICT_CD
+			)BASE
+	</select> -->
+	<select id="areaStatisticsList" parameterType="map" resultType="hashMap">
+		WITH INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT
+					INDI_ID,
+					INDI_NM,
+					INDI_UNIT,
+					INDI_ACCOUNT,
+					IPCC_LARGE,
+					IPCC_SMALL,
+					INDI_CONSTRUCT,
+					INDI_GROUP,
+					USER_ID,
+					TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2
+				FROM
+					INDICATOR_LIST_USER
+				<if test="startdate != '' &amp;&amp; enddate != ''">
+				WHERE
+					ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				) A
+		),
+		
+		INDI_FIELD_SET AS(
+			SELECT
+				*
+			FROM
+				INDI_LIST_SET
+			<if test="field != 'all'">
+			WHERE
+				INDI_ID IN
+				(
+				SELECT
+					DISTINCT A.INDI_ID
+				FROM
+					ITEM_INDICATOR_USER A
+				INNER JOIN
+					(
+					SELECT
+						*
+					FROM
+						ITEM_LIST_USER
+					WHERE
+						<if test="field != 'all'">
+						FIELD_ID = #{field}
+						</if>
+						
+					) B
+				ON
+					A.ITEM_ID = B.ITEM_ID
+				)
+			</if>
+		)
+		SELECT COALESCE(DISTRICT_NM_UNION,'기타') AS DISTRICT_NM_UNION, TOTAL
+		FROM (
+			SELECT SPLIT_PART(DISTRICT_NM,' ',1) AS DISTRICT_NM_UNION, COUNT(*) AS TOTAL
+			FROM (
+			SELECT
+				*,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.INDI_GROUP) AS INDI_GROUP_NM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_LARGE) AS IPCC_LARGE_NM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_SMALL) AS IPCC_SMALL_NM,
+				(SELECT DISTRICT_NM FROM (
+						SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = E.USER_DIST
+						UNION ALL
+						SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+						FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = E.USER_DIST)D 
+						WHERE D.DISTRICT_CD = E.USER_DIST) AS DISTRICT_NM
+			FROM
+				(
+				SELECT
+					ROW_NUMBER() OVER(ORDER BY ITEM_REGDATE2 ASC) AS RNUM,
+					*
+				FROM
+					(
+					SELECT 
+						D.*, B.USER_DIST 
+					FROM 
+						INDI_FIELD_SET D
+					JOIN USER_INFO B
+					ON D.USER_ID = B.USER_ID
+					WHERE
+						1 = 1
+					) A
+				WHERE
+					1=1
+				<if test="keyword != null">
+					AND INDI_NM LIKE '%' || #{keyword} || '%'
+				</if>
+					<choose>
+						<when test="sido !=0">
+							AND USER_DIST LIKE #{sido} || '%'
+						</when>
+						<otherwise>
+							AND USER_DIST LIKE '' || '%'
+						</otherwise>
+					</choose>
+			ORDER BY RNUM DESC 
+				) E )F
+				GROUP BY SPLIT_PART(DISTRICT_NM,' ',1)
+				ORDER BY 1 
+			)BASE
+	</select>
+
+	<select id = "detailAreaStatisticsList111" parameterType="map" resultType="hashMap">
+		SELECT
+					(SELECT DISTRICT_NM FROM (
+						SELECT DISTRICT_CD,DISTRICT_NM
+						FROM DISTRICT_SD 
+						WHERE DISTRICT_CD = C.USER_DIST
+						
+						UNION ALL
+						
+						SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+						FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD 
+						WHERE A.DISTRICT_CD = C.USER_DIST)D 
+					WHERE D.DISTRICT_CD = C.USER_DIST 
+					AND DISTRICT_NM LIKE #{LOCAL} || '%')
+					AS DISTRICT_NM_LOCAL,
+					COUNT(CASE SUBSTR(C.USER_DIST,1,2) WHEN (SELECT DISTRICT_CD FROM DISTRICT_SD 
+						WHERE DISTRICT_NM = #{LOCAL}) 
+						THEN (SELECT DISTRICT_NM FROM (
+						
+						SELECT DISTRICT_CD,DISTRICT_NM
+						FROM DISTRICT_SD 
+						WHERE DISTRICT_CD = C.USER_DIST
+						
+						UNION ALL
+						
+						SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+						FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD 
+						WHERE A.DISTRICT_CD = C.USER_DIST)D 			
+					WHERE D.DISTRICT_CD = C.USER_DIST AND DISTRICT_NM LIKE #{LOCAL} || '%')
+					END) AS TOTAL
+			FROM
+					(
+						SELECT 
+							D.*, B.USER_DIST 
+						FROM 
+							INDICATOR_LIST_USER D
+						JOIN USER_INFO B
+						ON 
+							D.USER_ID = B.USER_ID
+							<if test="field != 'all'">
+								AND
+									FIELD_ID = #{field}
+							</if>
+							<if test="startdate != '' &amp;&amp; enddate != ''">
+								AND ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+							</if>
+					) C 
+			WHERE C.USER_DIST LIKE (SELECT DISTRICT_CD FROM DISTRICT_SD WHERE DISTRICT_NM = #{LOCAL})|| '%'
+			GROUP BY DISTRICT_NM_LOCAL 
+			ORDER BY DISTRICT_NM_LOCAL
+	</select>
+	
+	<select id = "detailAreaStatisticsList" parameterType="map" resultType="hashMap">
+		WITH INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT
+					INDI_ID,
+					INDI_NM,
+					INDI_UNIT,
+					INDI_ACCOUNT,
+					IPCC_LARGE,
+					IPCC_SMALL,
+					INDI_CONSTRUCT,
+					INDI_GROUP,
+					USER_ID,
+					TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2
+				FROM
+					INDICATOR_LIST_USER
+				<if test="startdate != '' &amp;&amp; enddate != ''">
+				WHERE
+					ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				) A
+		),
+		
+		INDI_FIELD_SET AS(
+			SELECT
+				*
+			FROM
+				INDI_LIST_SET
+			<if test="field != 'all'">
+			WHERE
+				INDI_ID IN
+				(
+				SELECT
+					DISTINCT A.INDI_ID
+				FROM
+					ITEM_INDICATOR_USER A
+				INNER JOIN
+					(
+					SELECT
+						*
+					FROM
+						ITEM_LIST_USER
+					WHERE
+						<if test="field != 'all'">
+						FIELD_ID = #{field}
+						</if>
+						
+					) B
+				ON
+					A.ITEM_ID = B.ITEM_ID
+				)
+			</if>
+		)
+		SELECT SPLIT_PART(DISTRICT_NM,' ',1)||SPLIT_PART(DISTRICT_NM,' ',2) AS DISTRICT_NM_UNION, COUNT(*) AS TOTAL
+		FROM (
+		SELECT
+			*,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.INDI_GROUP) AS INDI_GROUP_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_LARGE) AS IPCC_LARGE_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_SMALL) AS IPCC_SMALL_NM,
+			(SELECT DISTRICT_NM FROM (
+					SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = E.USER_DIST
+					UNION ALL
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = E.USER_DIST)D 
+					WHERE D.DISTRICT_CD = E.USER_DIST) AS DISTRICT_NM
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_REGDATE2 ASC) AS RNUM,
+				*
+			FROM
+				(
+				SELECT 
+					D.*, B.USER_DIST 
+				FROM 
+					INDI_FIELD_SET D
+				JOIN USER_INFO B
+				ON D.USER_ID = B.USER_ID
+				WHERE
+					1 = 1
+				) A
+			WHERE
+				1=1
+			<if test="keyword != null">
+				AND INDI_NM LIKE '%' || #{keyword} || '%'
+			</if>
+				<choose>
+					<when test="sido !=0">
+						AND USER_DIST LIKE #{sido} || '%'
+					</when>
+					<otherwise>
+						AND USER_DIST LIKE '' || '%'
+					</otherwise>
+				</choose>
+		ORDER BY RNUM DESC 
+			) E )F
+			GROUP BY SPLIT_PART(DISTRICT_NM,' ',1)||SPLIT_PART(DISTRICT_NM,' ',2)
+			ORDER BY 1
+	</select>
+	<!-- <select id = "detailAreaStatisticsList" parameterType="map" resultType="hashMap">
+		WITH INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT
+					INDI_ID,
+					INDI_NM,
+					INDI_UNIT,
+					INDI_ACCOUNT,
+					IPCC_LARGE,
+					IPCC_SMALL,
+					INDI_CONSTRUCT,
+					INDI_GROUP,
+					USER_ID,
+					TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2
+				FROM
+					INDICATOR_LIST_USER
+				<if test="startdate != '' &amp;&amp; enddate != ''">
+				WHERE
+					ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				) A
+		),
+		
+		INDI_FIELD_SET AS(
+			SELECT
+				*
+			FROM
+				INDI_LIST_SET
+			<if test="field != 'all'">
+			WHERE
+				INDI_ID IN
+				(
+				SELECT
+					DISTINCT A.INDI_ID
+				FROM
+					ITEM_INDICATOR_USER A
+				INNER JOIN
+					(
+					SELECT
+						*
+					FROM
+						ITEM_LIST_USER
+					WHERE
+						<if test="field != 'all'">
+						FIELD_ID = #{field}
+						</if>
+						
+					) B
+				ON
+					A.ITEM_ID = B.ITEM_ID
+				)
+			</if>
+		)
+		SELECT (
+		
+		
+		SELECT DISTRICT_CD FROM DISTRICT_SGG X WHERE X.DISTRICT_NM = DISTRICT_NM_UNION) AS DISTRICT_CD, DISTRICT_NM_UNION, TOTAL FROM(
+		SELECT DISTRICT_NM_UNION, SUM(TOTAL) AS TOTAL FROM(
+		SELECT COALESCE(DISTRICT_NM,'기타') AS DISTRICT_NM_UNION, TOTAL
+		FROM (
+		SELECT
+			*,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.INDI_GROUP) AS INDI_GROUP_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_LARGE) AS IPCC_LARGE_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_SMALL) AS IPCC_SMALL_NM,
+			(SELECT DISTRICT_NM FROM (
+					SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = E.USER_DIST
+					UNION ALL
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = E.USER_DIST)D 
+					WHERE D.DISTRICT_CD = E.USER_DIST) AS DISTRICT_NM
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_REGDATE2 ASC) AS RNUM,
+				*
+			FROM
+				(
+				SELECT 
+					D.*, B.USER_DIST 
+				FROM 
+					INDI_FIELD_SET D
+				JOIN USER_INFO B
+				ON D.USER_ID = B.USER_ID
+				WHERE
+					1 = 1
+				) A
+			WHERE
+				1=1
+			<if test="keyword != null">
+				AND INDI_NM LIKE '%' || #{keyword} || '%'
+			</if>
+				<choose>
+					<when test="sido !=0">
+						AND USER_DIST LIKE #{sido} || '%'
+					</when>
+					<otherwise>
+						AND USER_DIST LIKE '' || '%'
+					</otherwise>
+				</choose>
+		ORDER BY RNUM DESC 
+			) E ) B GROUP BY DISTRICT_NM ORDER 
+			BY 1 ASC) BASE)G
+			GROUP BY DISTRICT_NM_UNION)SD 
+			ORDER BY DISTRICT_CD
+	</select> -->
+	
+	<select id="downloadInvenIndi" parameterType="EgovMap" resultType="EgovMap">
+		WITH INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT
+					INDI_ID,
+					INDI_NM,
+					INDI_UNIT,
+					INDI_ACCOUNT,
+					IPCC_LARGE,
+					IPCC_SMALL,
+					INDI_CONSTRUCT,
+					INDI_GROUP,
+					USER_ID,
+					TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2
+				FROM
+					INDICATOR_LIST_USER
+				<if test="startdate != '' &amp;&amp; enddate != ''">
+				WHERE
+					ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				) A
+		),
+		
+		INDI_FIELD_SET AS(
+			SELECT
+				*
+			FROM
+				INDI_LIST_SET
+			<if test="field != 'all'">
+			WHERE
+				INDI_ID IN
+				(
+				SELECT
+					DISTINCT A.INDI_ID
+				FROM
+					ITEM_INDICATOR_USER A
+				INNER JOIN
+					(
+					SELECT
+						*
+					FROM
+						ITEM_LIST_USER
+					WHERE
+						<if test="field != 'all'">
+						FIELD_ID = #{field_id}
+							<!-- FIELD ID 를 선택 했을 경우에만 항목 검색이 가능 -->
+							<if test="item_id != 'all'">
+							AND ITEM_ID = #{item_id}
+							</if>
+						</if>
+						
+					) B
+				ON
+					A.ITEM_ID = B.ITEM_ID
+				)
+			</if>
+		)
+		SELECT
+			*,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.INDI_GROUP) AS INDI_GROUP_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_LARGE) AS IPCC_LARGE_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_SMALL) AS IPCC_SMALL_NM,
+			(SELECT DISTRICT_NM FROM (
+					SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = E.USER_DIST
+					UNION ALL
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = E.USER_DIST)D 
+					WHERE D.DISTRICT_CD = E.USER_DIST) AS DISTRICT_NM
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_REGDATE2 ASC) AS RNUM,
+				*
+			FROM
+				(
+				SELECT 
+					D.*, B.USER_DIST 
+				FROM 
+					INDI_FIELD_SET D
+				JOIN USER_INFO B
+				ON D.USER_ID = B.USER_ID
+				) A
+			WHERE
+				1=1
+			<if test="keyword != null">
+				AND INDI_NM LIKE '%' || #{keyword} || '%'
+			</if>
+				<choose>
+					<when test="sido !=0">
+						AND USER_DIST LIKE #{sido} || '%'
+					</when>
+					<otherwise>
+						AND USER_DIST LIKE '' || '%'
+					</otherwise>
+				</choose>
+		ORDER BY RNUM DESC 
+			) E
+		
+	</select>
+	
+	<select id="downloadInvenIndiCnt" parameterType="EgovMap" resultType="hashMap">
+		WITH INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT
+					INDI_ID,
+					INDI_NM,
+					INDI_UNIT,
+					INDI_ACCOUNT,
+					IPCC_LARGE,
+					IPCC_SMALL,
+					INDI_CONSTRUCT,
+					INDI_GROUP,
+					USER_ID,
+					TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2
+				FROM
+					INDICATOR_LIST_USER
+				<if test="startdate != '' &amp;&amp; enddate != ''">
+				WHERE
+					ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				) A
+		),
+		
+		INDI_FIELD_SET AS(
+			SELECT
+				*
+			FROM
+				INDI_LIST_SET
+			<if test="field != 'all'">
+			WHERE
+				INDI_ID IN
+				(
+				SELECT
+					DISTINCT A.INDI_ID
+				FROM
+					ITEM_INDICATOR_USER A
+				INNER JOIN
+					(
+					SELECT
+						*
+					FROM
+						ITEM_LIST_USER
+					WHERE
+						<if test="field != 'all'">
+						FIELD_ID = #{field}
+						</if>
+						
+					) B
+				ON
+					A.ITEM_ID = B.ITEM_ID
+				)
+			</if>
+		)
+		SELECT SPLIT_PART(DISTRICT_NM,' ',1) AS DISTRICT_NM_UNION, COUNT(*) AS TOTAL
+		FROM (
+		SELECT
+			*,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.INDI_GROUP) AS INDI_GROUP_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_LARGE) AS IPCC_LARGE_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = E.IPCC_SMALL) AS IPCC_SMALL_NM,
+			(SELECT DISTRICT_NM FROM (
+					SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = E.USER_DIST
+					UNION ALL
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = E.USER_DIST)D 
+					WHERE D.DISTRICT_CD = E.USER_DIST) AS DISTRICT_NM
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_REGDATE2 ASC) AS RNUM,
+				*
+			FROM
+				(
+				SELECT 
+					D.*, B.USER_DIST 
+				FROM 
+					INDI_FIELD_SET D
+				JOIN USER_INFO B
+				ON D.USER_ID = B.USER_ID
+				WHERE
+					1 = 1
+				) A
+			WHERE
+				1=1
+			<if test="keyword != null">
+				AND INDI_NM LIKE '%' || #{keyword} || '%'
+			</if>
+				<choose>
+					<when test="sido !=0">
+						AND USER_DIST LIKE #{sido} || '%'
+					</when>
+					<otherwise>
+						AND USER_DIST LIKE '' || '%'
+					</otherwise>
+				</choose>
+		ORDER BY RNUM DESC 
+			) E )F
+			GROUP BY SPLIT_PART(DISTRICT_NM,' ',1)
+			ORDER BY 1
+	</select>
+</mapper>

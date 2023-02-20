@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="stat">
+	<sql id="statLog">
+		WITH RESULT_SET AS(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY C.LOG_DATE DESC) AS RNUM,
+				C.LOG_DATE,
+				C.LOG_YEAR, C.LOG_MONTH, C.LOG_DAY,
+				SUM(CASE C.USER_AUTH WHEN 'W' THEN 1 END )AS INDI_WIDE,
+				SUM(CASE C.USER_AUTH WHEN 'B' THEN 1 END )AS INDI_BASE,
+				SUM(CASE C.USER_AUTH WHEN 'A' THEN 1 END )AS INDI_ADMIN
+			FROM
+				(
+				SELECT
+					CAST(TO_CHAR(A.LOG_DATE,'YYYY') AS INTEGER ) AS LOG_YEAR,
+					CAST(TO_CHAR(A.LOG_DATE,'MM') AS INTEGER ) AS LOG_MONTH,
+					CAST(TO_CHAR(A.LOG_DATE,'DD') AS INTEGER ) AS LOG_DAY,
+					B.USER_AUTH,
+					A.*
+				FROM
+					ACCESS_LOG A
+				JOIN USER_INFO B ON A.USER_ID = B.USER_ID
+				WHERE B.USER_AUTH != 'A'
+				)C
+			GROUP BY LOG_DATE, C.LOG_YEAR, C.LOG_MONTH,C.LOG_DAY
+		)
+	</sql>
+	
+	<sql id="estimationLog">
+		WITH RESULT_SET AS(
+				SELECT
+					ROW_NUMBER() OVER(ORDER BY C.LOG_DATE DESC) AS RNUM,
+					C.field_id,C.item_id,
+					C.LOG_DATE,
+					C.YEAR, C.MONTH, C.DAY,
+					SUM(CASE C.USER_AUTH WHEN 'W' THEN 1 else 0 END )AS INDI_WIDE,
+					SUM(CASE C.USER_AUTH WHEN 'B' THEN 1 else 0 END )AS INDI_BASE,
+					SUM(CASE C.USER_AUTH WHEN 'A' THEN 1 else 0 END )AS INDI_ADMIN
+				FROM
+					(
+					SELECT
+						CAST(TO_CHAR(A.LOG_DATE,'YYYY') AS INTEGER ) AS YEAR,
+						CAST(TO_CHAR(A.LOG_DATE,'MM') AS INTEGER ) AS MONTH,
+						CAST(TO_CHAR(A.LOG_DATE,'DD') AS INTEGER ) AS DAY,
+						B.USER_AUTH,
+						A.log_date,
+						A.field_id,
+						A.item_id
+					FROM
+						estimation_log A
+					JOIN USER_INFO B ON A.USER_ID = B.USER_ID
+					WHERE B.USER_AUTH != 'A' and field_id = #{fieldId}
+					)C
+				GROUP BY LOG_DATE ,C.YEAR, C.MONTH,C.DAY,C.field_id,C.item_id
+				order by LOG_DATE
+			)
+	</sql>
+	
+	<select id="selectEstimationLogList" parameterType="EgovMap"
+		resultType="EgovMap">
+		<![CDATA[
+			SELECT
+				LOG_ID AS ID
+				,(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = FIELD_ID) AS FIELD_NM
+				,(SELECT ITEM_NM FROM ITEM_LIST WHERE ITEM_ID = C.ITEM_ID) AS ITEM_NM
+				,(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = MODEL_ID) AS MODEL_NM
+				,(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = SECTION_ID) AS SECTION_NM
+				,(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = YEAR_ID) AS YEAR_NM
+				,(SELECT DISTRICT_NM FROM (
+					SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = C.DISTRICT_CD
+					UNION ALL
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = C.DISTRICT_CD)D WHERE D.DISTRICT_CD = C.DISTRICT_CD)
+				AS DISTRICT_NM
+			FROM 
+				ESTIMATION_LOG C
+			WHERE
+				USER_ID = #{userId}
+			ORDER BY LOG_ID DESC
+			LIMIT 5
+		]]>
+	</select>
+		
+	<select id="selectAccessLogList" parameterType="EgovMap" resultType="EgovMap">
+		<include refid="statLog" />
+		SELECT
+			ROW_NUMBER() OVER(ORDER BY 
+			<if test='type=="year" || type=="month" || type=="day"'>LOG_YEAR DESC</if>
+			<if test='type=="month" || type=="day"'>,LOG_MONTH DESC</if>
+			<if test='type=="day"'>,LOG_DAY DESC</if>
+			) AS RNUM
+			<if test='type=="year" || type=="month" || type=="day"'>,LOG_YEAR</if>
+			<if test='type=="month" || type=="day"'>,LOG_MONTH</if>
+			<if test='type=="day"'>,LOG_DAY</if>
+			,COALESCE(SUM(INDI_WIDE), 0) AS SUM_WIDE, COALESCE(SUM(INDI_BASE), 0) AS SUM_BASE
+		FROM
+			RESULT_SET
+		WHERE 1=1
+			<if test='startDate != null and startDate !="null"'>
+				<![CDATA[and TO_DATE(TO_CHAR(LOG_DATE, 'YYYY-MM-DD'),'YYYY-MM-DD') >= TO_DATE(#{startDate},'yyyy-MM-dd')]]>
+			</if>
+			<if test='endDate != null and endDate !="null"'>
+				<![CDATA[and TO_DATE(TO_CHAR(LOG_DATE, 'YYYY-MM-DD'),'YYYY-MM-DD') <= TO_DATE(#{endDate},'yyyy-MM-dd')]]>
+			</if>
+			GROUP BY
+			<if test='type=="year" || type=="month" || type=="day"'>LOG_YEAR</if>
+			<if test='type=="month" || type=="day"'>,LOG_MONTH</if>
+			<if test='type=="day"'>,LOG_DAY</if>
+			ORDER BY
+			<if test='type=="year" || type=="month" || type=="day"'>LOG_YEAR DESC</if>
+			<if test='type=="month" || type=="day"'>,LOG_MONTH DESC</if>
+			<if test='type=="day"'>,LOG_DAY DESC</if>
+	</select>
+	
+	<select id="selectMonthAccessLogList" parameterType="EgovMap" resultType="EgovMap">
+		SELECT 
+			TO_CHAR(LOG_DATE, 'YYYY-MM-DD') AS ACCESS_DATE, USER_ID,
+			(SELECT DISTRICT_NM FROM DISTRICT_SD WHERE 
+			SUBSTR((SELECT USER_DIST FROM USER_INFO B WHERE A.USER_ID = B.USER_ID),1,2) = DISTRICT_CD) AS DISTRICT_NM,
+			(SELECT USER_NM FROM USER_INFO B WHERE A.USER_ID = B.USER_ID) AS USER_NM
+		FROM 
+			ACCESS_LOG A
+		WHERE TO_CHAR(LOG_DATE, 'YYYY-MM-DD') BETWEEN #{start} AND #{date}
+			AND USER_ID NOT LIKE ('admin%')
+		GROUP BY TO_CHAR(LOG_DATE, 'YYYY-MM-DD'), USER_ID, DISTRICT_NM, USER_NM
+		ORDER BY TO_CHAR(LOG_DATE, 'YYYY-MM-DD')
+	</select>
+	
+	<!-- 취약성평가 sql  -->
+	
+
+	<select id="selectOptionlist" parameterType="EgovMap"
+		resultType="EgovMap">
+		<![CDATA[
+			SELECT
+				CODE_ID
+				,CODE_NM
+			FROM 
+				REF_CODE
+			WHERE
+				CODE_GROUP = #{codeGroup}
+			ORDER BY
+				CODE_ID ASC
+		]]>
+	</select>
+	
+	<select id="selectEstimationList" parameterType="EgovMap" resultType="EgovMap">
+		<include refid="estimationLog" />
+		SELECT *, (SUM_WIDE + SUM_BASE) AS SUM_TOTAL FROM(
+			SELECT 
+			COALESCE(SUM(SUM_WIDE),0) AS SUM_WIDE, COALESCE(SUM(SUM_BASE),0) AS SUM_BASE,
+			E.ITEM_NM 
+		FROM 
+		(
+			SELECT
+				SUM(INDI_WIDE) AS SUM_WIDE, SUM(INDI_BASE) AS SUM_BASE,
+				ITEM_ID,
+				(SELECT ITEM_NM FROM ITEM_LIST WHERE ITEM_ID= Z.ITEM_ID)
+			FROM
+				RESULT_SET Z
+			WHERE 1=1
+				<if test='startDate != null and startDate !="null"'>
+					<![CDATA[and TO_DATE(TO_CHAR(LOG_DATE, 'YYYY-MM-DD'),'YYYY-MM-DD') >= TO_DATE(#{startDate},'yyyy-MM-dd')]]>
+				</if>
+				<if test='endDate != null and endDate !="null"'>
+					<![CDATA[and TO_DATE(TO_CHAR(LOG_DATE, 'YYYY-MM-DD'),'YYYY-MM-DD') <= TO_DATE(#{endDate},'yyyy-MM-dd')]]>
+				</if>
+				GROUP BY item_id
+			)D
+		RIGHT OUTER JOIN ITEM_LIST E ON D.ITEM_ID = E.ITEM_ID
+		WHERE E.FIELD_ID = #{fieldId}
+		GROUP BY  E.ITEM_ID, E.ITEM_NM
+		ORDER BY E.ITEM_ID
+		)sum
+	</select>
+	
+	<select id="selectEstimationTotalList" parameterType="EgovMap" resultType="EgovMap">
+		<include refid="estimationLog" />
+		SELECT *, (TOTAL_WIDE + TOTAL_BASE) AS TOTAL_SUM FROM(
+		SELECT 
+			SUM(SUM_WIDE) AS TOTAL_WIDE,SUM(SUM_BASE) AS TOTAL_BASE 
+		FROM
+		(
+			SELECT 
+				COALESCE(SUM(SUM_WIDE),0) AS SUM_WIDE, COALESCE(SUM(SUM_BASE),0) AS SUM_BASE
+			FROM 
+		(
+			SELECT
+				SUM(INDI_WIDE) AS SUM_WIDE, SUM(INDI_BASE) AS SUM_BASE,
+				ITEM_ID,
+				(SELECT ITEM_NM FROM ITEM_LIST WHERE ITEM_ID= Z.ITEM_ID)
+			FROM
+				RESULT_SET Z
+			WHERE 1=1
+				<if test='startDate != null and startDate !="null"'>
+					<![CDATA[and TO_DATE(TO_CHAR(LOG_DATE, 'YYYY-MM-DD'),'YYYY-MM-DD') >= TO_DATE(#{startDate},'yyyy-MM-dd')]]>
+				</if>
+				<if test='endDate != null and endDate !="null"'>
+					<![CDATA[and TO_DATE(TO_CHAR(LOG_DATE, 'YYYY-MM-DD'),'YYYY-MM-DD') <= TO_DATE(#{endDate},'yyyy-MM-dd')]]>
+				</if>
+				GROUP BY item_id
+			)D
+		RIGHT OUTER JOIN ITEM_LIST E ON D.ITEM_ID = E.ITEM_ID
+		WHERE E.FIELD_ID = #{fieldId}
+		GROUP BY  E.ITEM_ID, E.ITEM_NM
+		ORDER BY E.ITEM_ID
+		) H
+		) T
+	</select>
+</mapper>

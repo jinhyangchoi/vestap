@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="userManagement">
+
+	<select id="selectPageCount" parameterType="EgovMap" resultType="int">
+	/* userManagement-SQL.xml selectPageCount */
+	SELECT COALESCE (
+		(
+		<![CDATA[
+		SELECT ( no - 1 ) /#{pageLimit} + 1 AS PAGE
+         FROM  (SELECT Max(no) AS NO
+                  FROM (SELECT Row_number() OVER (ORDER BY user_id ASC) AS NO
+                          FROM user_info
+                         WHERE user_auth NOT IN('A')
+		]]>
+							<if test="userAuth != null and userAuth != ''">
+								AND USER_AUTH = #{userAuth}
+							</if>
+							<if test="useYn != null and useYn != ''">
+								AND USE_YN = #{useYn}
+							</if>
+                           <if test="userNm != null and userNm != ''">
+								AND USER_ID LIKE '%' || #{userNm} || '%'
+								 OR USER_NM LIKE '%' || #{userNm} || '%'
+							</if>
+                       ) A
+               ) B
+		), 0)
+	</select>
+	
+	<select id="selectUserList" parameterType="EgovMap" resultType="EgovMap">
+	/* selectUserList */
+		SELECT 
+		<![CDATA[
+		(NO-1)/#{pageLimit}+1 AS PAGE
+		, NO
+		, USER_ID
+		, USER_NM
+        , USER_DIST
+		, USER_DISTRICT
+		, USER_AUTH
+		, USER_AUTH_NM
+		, USER_EMAIL
+		, USER_ORG_NM
+        , USER_GOV_YN
+        , USER_GOV_YN_NM
+        , FILE_ATCH_YN
+        , FILE_ATCH_YN_NM
+		, USE_YN
+		, USE_YN_NM
+		, NOW
+		, APRV_DT		
+		, USER_EXPIRE
+		, FILE_IDX
+		, FRST_REG_DT
+		, SECURITY_AGREE_YN
+       	, PURPOSE_USE_CD
+        , PURPOSE_USE_NM 
+		FROM
+		(
+			SELECT
+			]]>
+				<choose>
+					<when test="category != null and category.equals('id')">
+						<if test='type != null and (type eq "down".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_ID DESC) AS NO, *
+						</if>
+						<if test='type != null and (type eq "up".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_ID ASC) AS NO, *
+						</if>
+					</when>
+					<when test="category != null and category.equals('name')">
+						<if test='type != null and (type eq "down".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_NM DESC) AS NO, *
+						</if>
+						<if test='type != null and (type eq "up".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_NM ASC) AS NO, *
+						</if>
+					</when>
+					<when test="category != null and category.equals('aprv')">
+						<if test='type != null and (type eq "down".toString())'>
+							ROW_NUMBER() OVER (ORDER BY APRV_DT DESC) AS NO, *
+						</if>
+						<if test='type != null and (type eq "up".toString())'>
+							ROW_NUMBER() OVER (ORDER BY APRV_DT ASC) AS NO, *
+						</if>
+					</when>
+					<when test="category != null and category.equals('expire')">
+						<if test='type != null and (type eq "down".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_EXPIRE DESC) AS NO, *
+						</if>
+						<if test='type != null and (type eq "up".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_EXPIRE ASC) AS NO, *
+						</if>
+					</when>
+					<otherwise>
+						ROW_NUMBER() OVER (ORDER BY USER_ID ASC) AS NO, *
+					</otherwise>
+				</choose>
+				<![CDATA[
+				FROM (
+				SELECT 
+				USER_ID
+				, USER_NM
+				, (SELECT DISTRICT_NM
+				     FROM (
+                            SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = C.USER_DIST
+                            UNION ALL
+                            SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+                            FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = C.USER_DIST)D WHERE D.DISTRICT_CD = C.USER_DIST
+                          ) AS USER_DIST
+				, USER_DISTRICT
+				, USER_AUTH
+				, CASE USER_AUTH
+					   WHEN 'B' THEN '시군구'
+					   WHEN 'W' THEN '시도'
+				   END AS USER_AUTH_NM
+				, USER_EMAIL
+				, USER_ORG_NM
+                , USER_GOV_YN
+                , CASE USER_GOV_YN
+                       WHEN 'Y' THEN '공무원'
+                       ELSE '민간'
+                   END AS USER_GOV_YN_NM     
+                , FILE_ATCH_YN
+                , CASE FILE_ATCH_YN
+                       WHEN 'Y' THEN '첨부'
+                       ELSE '미첨부'
+                   END AS FILE_ATCH_YN_NM
+				, USE_YN
+				, CASE USE_YN
+                       WHEN 'Y' THEN '사용'                       
+                       WHEN 'D' THEN '대기'
+                       ELSE '미사용'
+                   END AS USE_YN_NM
+				, TO_CHAR(( NOW() ), 'YYYY년 MM월 DD일') NOW
+				, TO_CHAR(( C.FRST_REG_DT ), 'YYYY년 MM월 DD일') FRST_REG_DT
+				, TO_CHAR(( RCPT_DT ), 'YYYY년 MM월 DD일') RCPT_DT
+				, TO_CHAR(( APRV_DT ), 'YYYY년 MM월 DD일') APRV_DT
+				, CASE USER_GOV_YN
+                       WHEN 'Y' THEN TO_CHAR(( APRV_DT + '5year' ), 'YYYY년 MM월 DD일')
+                       WHEN 'N' THEN TO_CHAR(( APRV_DT + '1year' ), 'YYYY년 MM월 DD일')
+                   END AS USER_EXPIRE
+                , FILE_IDX
+                , SECURITY_AGREE_YN
+             	, PURPOSE_USE_CD
+                , PURPOSE_USE_NM 
+			 FROM USER_INFO C
+			WHERE USER_AUTH <> 'A'
+			]]>
+			<if test="userAuth != null and userAuth != ''">
+				AND USER_AUTH = #{userAuth}
+			</if>
+			<if test="useYn != null and useYn != ''">
+				AND USE_YN = #{useYn}
+			</if>
+			<if test="userNm != null and userNm != ''">
+				AND USER_ID LIKE '%' || #{userNm} || '%'
+				 OR USER_NM LIKE '%' || #{userNm} || '%'
+			</if>
+			<![CDATA[
+			)A
+			]]>
+			<choose>
+				<when test="category != null and category.equals('id')">
+					<if test='type != null and (type eq "down".toString())'>
+						ORDER BY USER_ID DESC
+					</if>
+					<if test='type != null and (type eq "up".toString())'>						
+						ORDER BY USER_ID ASC
+					</if>
+				</when>
+				<when test="category != null and category.equals('name')">
+					<if test='type != null and (type eq "down".toString())'>
+						ORDER BY USER_NM DESC
+					</if>
+					<if test='type != null and (type eq "up".toString())'>
+						ORDER BY USER_NM ASC
+					</if>
+				</when>
+				<when test="category != null and category.equals('aprv')">
+					<if test='type != null and (type eq "down".toString())'>
+						ORDER BY APRV_DT DESC
+					</if>
+					<if test='type != null and (type eq "up".toString())'>
+						ORDER BY APRV_DT ASC
+					</if>
+				</when>
+				<when test="category != null and category.equals('expire')">
+					<if test='type != null and (type eq "down".toString())'>
+						ORDER BY USER_EXPIRE DESC
+					</if>
+					<if test='type != null and (type eq "up".toString())'>
+						ORDER BY USER_EXPIRE ASC
+					</if>
+				</when>
+				<otherwise>
+					ORDER BY USER_ID ASC
+				</otherwise>
+			</choose>
+		<![CDATA[
+		) B
+		]]>
+	</select>
+	
+	<update id="updateUserPw" parameterType="EgovMap">
+		<![CDATA[
+			UPDATE 
+				USER_INFO
+			SET
+				USER_PW = #{password}
+			WHERE
+				USER_ID = #{data}
+		]]>
+	</update>
+	
+	<update id="updateUserInfo" parameterType="EgovMap">
+	/* userManagement-SQL.xml updateUserInfo */
+		<![CDATA[
+			UPDATE USER_INFO SET
+		]]>
+			<if test="userNm != null and !userNm.equals('')">
+					USER_NM = #{userNm}
+			</if>
+			<if test="userPw != null and !userPw.equals('')">
+					,USER_PW = #{userPw}
+			</if>
+			<if test="userOrgNm != null and !userOrgNm.equals('')">
+					,USER_ORG_NM = #{userOrgNm}
+			</if>
+			
+			<if test="userEmail != null and !userEmail.equals('')">
+					,USER_EMAIL = #{userEmail}
+			</if>
+			<if test="userGovYn != null and !userGovYn.equals('')">
+					,USER_GOV_YN = #{userGovYn}
+			</if>
+			<if test="userAuth != null and !userAuth.equals('')">
+					,USER_AUTH = #{userAuth}
+			</if>
+			<if test="sido != null and !sido.equals('')">
+			<choose>
+				<when test="sigungu != null and !sigungu.equals('')">
+					,USER_DIST = #{sigungu}
+				</when>
+				<otherwise>
+					,USER_DIST = #{sido}
+				</otherwise>
+			</choose>
+			</if>
+			<if test="uploadFile != null and !uploadFile.equals('')">
+					,FILE_ATCH_YN = 'Y'
+			</if>
+			<if test="securityAgreeYn != null and !securityAgreeYn.equals('')">
+					,SECURITY_AGREE_YN = #{securityAgreeYn}
+			</if>
+			<if test="purposeUseCd != null and !purposeUseCd.equals('')">
+					,PURPOSE_USE_CD = #{purposeUseCd}
+			</if>
+			<if test="purposeUseNm != null and !purposeUseNm.equals('')">
+					,PURPOSE_USE_NM = #{purposeUseNm}
+			</if>
+			        ,MDFCN_DT = NOW()
+		<![CDATA[
+			WHERE
+				USER_ID = #{userId}
+		]]>
+	</update>
+
+	<delete id="deleteUser" parameterType="EgovMap">
+		<![CDATA[
+			DELETE FROM USER_INFO WHERE USER_ID = #{data}
+		]]>
+	</delete>
+
+	<select id="selectUserIdCheck" parameterType="EgovMap"
+		resultType="int">
+		<![CDATA[
+			SELECT COUNT(*) FROM USER_INFO WHERE USER_ID = #{userId}
+		]]>
+	</select>
+
+	<insert id="insertUser" parameterType="EgovMap">
+		INSERT INTO
+		USER_INFO(USER_ID,USER_NM,USER_PW,USER_AUTH,USER_DIST,USER_ACCESS)
+		VALUES(#{userId},#{userNm},#{userPw},#{userAuth},#{userDist},NOW())
+	</insert>
+	
+	<select id="getUserInfo" parameterType="EgovMap" resultType="EgovMap">
+	/* userManagement-SQL.xml getUserInfo */
+	<![CDATA[
+		SELECT 
+		       A.USER_ID
+		     , A.USER_NM
+		     , A.USER_DIST
+		     , A.USER_DISTRICT
+		     , A.USER_AUTH
+		     , CASE USER_AUTH
+			        WHEN 'B' THEN '시군구 사용자'
+			        WHEN 'W' THEN '시도 사용자'
+		        END AS USER_AUTH_NM
+		     , A.USER_EMAIL
+		     , A.USER_ORG_NM
+		     , A.USER_GOV_YN
+		     , CASE A.USER_GOV_YN
+                    WHEN 'Y' THEN '공무원'
+                    WHEN 'N' THEN '민간'
+                END AS USER_GOV_YN_NM
+		     , A.USE_YN
+		     , CASE A.USE_YN
+                    WHEN 'Y' THEN '사용'                    
+                    WHEN 'D' THEN '대기'
+                    ELSE '미사용'
+                END AS USE_YN_NM
+		     , TO_CHAR(( NOW() ), 'YYYY년 MM월 DD일')   NOW
+		     , TO_CHAR(( A.FRST_REG_DT ), 'YYYY년 MM월 DD일') FRST_REG_DT
+		     , TO_CHAR(( RCPT_DT ), 'YYYY년 MM월 DD일') RCPT_DT
+		     , TO_CHAR(( APRV_DT ), 'YYYY년 MM월 DD일') APRV_DT
+		     , CASE USER_GOV_YN
+			        WHEN 'Y' THEN TO_CHAR(( APRV_DT + '5YEAR' ), 'YYYY년 MM월 DD일')
+			        WHEN 'N' THEN TO_CHAR(( APRV_DT + '1YEAR' ), 'YYYY년 MM월 DD일')
+		        END AS USER_EXPIRE
+		     , A.FILE_IDX
+		     , A.EML_RCPTN_AGRE_YN
+		     , B.ORG_FILE_NM
+		     , B.STD_FILE_NM
+		     , B.FILE_PATH
+		     , B.FRST_REG_USER
+		     , A.SECURITY_AGREE_YN
+		     , A.PURPOSE_USE_CD
+		     , A.PURPOSE_USE_NM 
+		  FROM USER_INFO A
+		  LEFT OUTER JOIN USER_FILE B ON A.FILE_IDX = B.FILE_IDX
+		 WHERE A.USER_ID = #{data}
+	]]>
+	</select>
+	
+</mapper>

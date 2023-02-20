@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="admSndngMailRegistDAO">
+
+	<select id="admSndngMailRegistDAO.selectMssageId" parameterType="vestap.adm.ems.service.AdmSndngMailVO" resultType="vestap.adm.ems.service.AdmSndngMailVO">
+		SELECT COALESCE ((SELECT Max(mssage_id) FROM comthemaildsptchmanage), 0) + 1 as mssageId
+	</select>
+	
+	<!-- 발송메일 등록 -->
+	<insert id="admSndngMailRegistDAO.insertSndngMail" parameterType="vestap.adm.ems.service.AdmSndngMailVO">
+	/* admSndngMailRegistDAO.insertSndngMail */
+		<![CDATA[
+		INSERT INTO COMTHEMAILDSPTCHMANAGE
+		(
+			MSSAGE_ID,
+			SNDR,
+			RCVER_ID,
+			RCVER_NM,
+			RCVER,
+			SJ,
+			SNDNG_RESULT_CODE,
+			EMAIL_CN,
+			DSPTCH_DT
+		) VALUES (
+			#{mssageId},
+			#{dsptchPerson},
+			#{rcverId},
+			#{rcverNm},
+			#{recptnPerson},
+			#{sj},
+			#{sndngResultCode},
+			#{emailCn},
+			now()
+		)
+		]]>
+	</insert>
+	
+	<!-- 발송메일 결과 수정 -->
+	<update id="admSndngMailRegistDAO.updateSndngMail" parameterType="vestap.adm.ems.service.AdmSndngMailVO">
+		<![CDATA[
+		UPDATE COMTHEMAILDSPTCHMANAGE 
+		   SET SNDNG_RESULT_CODE = #{sndngResultCode}
+		 WHERE MSSAGE_ID = #{mssageId}
+		]]>
+	</update>
+</mapper>

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE tiles-definitions PUBLIC "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN" "http://tiles.apache.org/dtds/tiles-config_3_0.dtd">
+
+<tiles-definitions>
+	
+	<definition name="layout-basic" template="/WEB-INF/layout/tile/layout-basic.jsp">
+		<put-attribute name="cmmlib" value="/WEB-INF/layout/cmms/vestap-lib.jsp"/>
+		<put-attribute name="cmmjs" value="/WEB-INF/layout/cmms/vestap-js.jsp"/>
+		<put-attribute name="header" value="/WEB-INF/layout/cmms/vestap-header.jsp"/>
+		<put-attribute name="sidemenu" value="/WEB-INF/layout/cmms/vestap-sidemenu.jsp"/>
+		<put-attribute name="content" value=""/>
+	</definition>
+	
+	<definition name="layout-error" template="/WEB-INF/layout/tile/layout-error.jsp">
+		<put-attribute name="content" value=""/>
+	</definition>
+	
+	<definition name="layout-report" template="/WEB-INF/layout/tile/layout-report.jsp">
+		<put-attribute name="cmmlib" value="/WEB-INF/layout/cmms/vestap-lib.jsp"/>
+	</definition>
+	
+	<definition name="layout-nonside" template="/WEB-INF/layout/tile/layout-nonside.jsp">
+		<put-attribute name="cmmlib" value="/WEB-INF/layout/cmms/vestap-lib.jsp"/>
+		<put-attribute name="cmmjs" value="/WEB-INF/layout/cmms/vestap-js.jsp"/>
+		<put-attribute name="header" value="/WEB-INF/layout/cmms/vestap-header.jsp"/>
+		<put-attribute name="content" value=""/>
+	</definition>
+	<definition name="layout-nonside-userapply" template="/WEB-INF/layout/tile/layout-nonside-userapply.jsp">
+		<put-attribute name="cmmlib" value="/WEB-INF/layout/cmms/vestap-lib.jsp"/>
+		<put-attribute name="cmmjs" value="/WEB-INF/layout/cmms/vestap-js.jsp"/>
+		<put-attribute name="header" value="/WEB-INF/layout/cmms/vestap-header-userapply.jsp"/>
+		<put-attribute name="content" value=""/>
+	</definition>
+	
+	<definition name="error/*" extends="layout-error">
+		<put-attribute name="content" value="/WEB-INF/jsp/error/{1}.jsp"/>
+	</definition>
+	
+	<definition name="*" extends="layout-basic">
+		<put-attribute name="content" value="/WEB-INF/jsp/{1}.jsp"/>
+	</definition>
+	
+	<definition name="*/*" extends="layout-basic">
+		<put-attribute name="content" value="/WEB-INF/jsp/{1}/{2}.jsp"/>
+	</definition>
+	
+	<definition name="*/*/report" extends="layout-report">
+		<put-attribute name="content" value="/WEB-INF/jsp/{1}/{2}/report.jsp"/>
+	</definition>
+	
+	<definition name="*/*/*" extends="layout-basic">
+		<put-attribute name="content" value="/WEB-INF/jsp/{1}/{2}/{3}.jsp"/>
+	</definition>
+	
+	<definition name="*/*/*/report" extends="layout-report">
+		<put-attribute name="content" value="/WEB-INF/jsp/{1}/{2}/{3}/report.jsp"/>
+	</definition>
+	
+	<definition name="*/*/*/*" extends="layout-basic">
+		<put-attribute name="content" value="/WEB-INF/jsp/{1}/{2}/{3}/{4}.jsp"/>
+	</definition>
+	
+	<definition name="main" extends="layout-basic">
+		<put-attribute name="content" value="/WEB-INF/jsp/main/main.jsp"/>
+	</definition>
+	
+	<definition name="login" extends="layout-basic">
+		<put-attribute name="content" value="/WEB-INF/jsp/login/login.jsp"/>
+	</definition>
+	
+	<definition name="user/survey" extends="layout-report">
+		<put-attribute name="content" value="/WEB-INF/jsp/user/survey.jsp"/>
+	</definition>
+	
+	<definition name="user/pwInquiry" extends="layout-nonside">
+		<put-attribute name="content" value="/WEB-INF/jsp/user/pwInquiry.jsp"/>
+	</definition>
+	
+	<definition name="user/userApplyInsertView" extends="layout-nonside-userapply">
+		<put-attribute name="content" value="/WEB-INF/jsp/user/userApplyInsertView.jsp"/>
+	</definition>
+	
+</tiles-definitions>

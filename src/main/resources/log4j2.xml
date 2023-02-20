@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+	
+	<properties>
+		<property name="name">log</property>
+		<property name="pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} | %-5.5p | %-30.30C::%-30.30M:%-5.5L | %msg%n</property>
+	</properties>
+	
+	<Appenders>
+		<Console name="console" target="SYSTEM_OUT">
+<!-- 			<PatternLayout pattern="%d %5p [%c] %m%n %l" /> -->
+			<PatternLayout pattern="%d %m%n %-5p %l" />
+		</Console>
+		
+		<RollingFile name="file" fileName="C:/VESTAP_LOG/${name}.log" filePattern="C:/VESTAP_LOG/$${date:yyyy}/$${date:MM}/$${date:dd}/${name}_%d{yyyyMMddHH}.log">
+			<PatternLayout>
+				<pattern>${pattern}</pattern>
+			</PatternLayout>
+			<Policies>
+				<TimeBasedTriggeringPolicy /><!-- Rotated everyday -->
+			</Policies>
+		</RollingFile>
+	</Appenders>
+	
+	<Loggers>
+		
+		<Logger name="java.sql" level="OFF" additivity="false">
+        	<AppenderRef ref="console" />
+        </Logger>
+        <Logger name="com.ibatis" level="OFF" additivity="false">
+        	<AppenderRef ref="console"/>
+        </Logger>
+        
+        <Logger name="java.sql.Connection" level="OFF" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="java.sql.PreparedStatement" level="OFF" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="java.sql.Statement" level="OFF" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="java.sql.ResultSet" level="OFF" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+		
+		<!-- 베이스 패키지 구조로 잡아줘야 함. -->
+		<Logger name="org.springframework" level="OFF" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="egovframework" level="OFF" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="vestap" level="OFF" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <logger name="org.apache.commons.digester.Digester" level ="OFF" additivity="false">
+			<AppenderRef ref="Console"/>
+		</logger>
+        
+		<!-- log SQL with timing information, post execution -->
+		<!-- SQL 연결 상태 출력 -->
+		<Logger name="jdbc.connection" level="OFF" additivity="false">
+			<AppenderRef ref="console" />
+		</Logger>
+		
+		<!-- SQL만 출력 -->
+		<Logger name="jdbc.sqlonly" level="OFF" additivity="false">
+			<AppenderRef ref="console" />
+		</Logger>
+		
+		<!-- SQL과 경과 시간을 함께 출력 -->
+		<Logger name="jdbc.sqltiming" level="INFO" additivity="false">
+			<AppenderRef ref="console" />
+			<AppenderRef ref="file" />
+		</Logger>
+		
+		<!-- SQL결과 상세하기 -->
+		<Logger name="jdbc.audit" level="OFF" additivity="false">
+			<AppenderRef ref="console" />
+		</Logger>
+		
+		<!-- SQL결과 상세하게 -->
+		<Logger name="jdbc.resultset" level="OFF" additivity="false">
+			<AppenderRef ref="console" />
+		</Logger>
+		
+		<!-- 결과 TABLE 형태로 출력 -->
+		<Logger name="jdbc.resultsettable" level="OFF" additivity="false">
+			<AppenderRef ref="console" />
+		</Logger>
+		
+		<!-- ===================================== -->
+		<!-- Possible Log Levels:                  -->
+		<!-- ===================================== -->
+		<!-- FATAL, ERROR, WARN, INFO, DEBUG, TRACE-->
+		
+		<Root level="ERROR">
+			<AppenderRef ref="console" />
+			<AppenderRef ref="file" />
+		</Root>
+		
+	</Loggers>
+	
+</Configuration>

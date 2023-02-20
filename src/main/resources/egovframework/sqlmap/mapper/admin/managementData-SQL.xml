@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="managementData">
+	<select id="getDataListView" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				*,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = IPCC_LARGE) AS IPCC_LARGE_NM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = IPCC_SMALL) AS IPCC_SMALL_NM
+			FROM
+				INDICATOR_LIST
+				<if test="keyword != null">
+			WHERE
+				INDI_NM LIKE '%' || #{keyword} || '%'
+				</if>
+			ORDER BY
+				INDI_ID DESC
+			LIMIT #{endRow}
+			) A
+		OFFSET
+			#{startRow}
+	</select>
+	
+	<select id="getDataViewTotCnt" parameterType="map" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			INDICATOR_LIST
+			<if test="keyword != null">
+		WHERE
+			INDI_NM LIKE '%' || #{keyword} || '%'
+			</if>
+	</select>
+	
+	<select id="getDataIndicatorList" parameterType="map" resultType="hashMap">
+		SELECT
+			INDI_ID,
+			INDI_NM,
+			INDI_UNIT,
+			INDI_GROUP,
+			IPCC_LARGE,
+			IPCC_SMALL,
+			INDI_ACCOUNT,
+			INDI_CONSTRUCT,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = INDI_CONSTRUCT) AS INDI_CONSTRUCT_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = IPCC_LARGE) AS IPCC_LARGE_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = IPCC_SMALL) AS IPCC_SMALL_NM,
+			INDI_CONSTRUCT_METH,
+			INDI_DEDUCTION,
+			INDI_SPACE,
+			(SELECT INDI_YEAR FROM INDICATOR_DATA T2 WHERE T1.INDI_ID = T2.INDI_ID LIMIT 1) AS INDI_YEAR
+			
+		FROM
+			INDICATOR_LIST T1
+		WHERE
+			INDI_ID = #{indi_id}
+	</select>
+	
+	<select id="getDataIndicatorDataInfo" parameterType="map" resultType="hashMap">
+	SELECT 
+		(SELECT META_NM FROM REF_META T2 WHERE T1.META_ID= T2.META_ID) AS META_NM,
+		(SELECT META_OFFER_ORG FROM REF_META T2 WHERE T1.META_ID= T2.META_ID) AS META_OFFER_ORG
+		FROM INDICATOR_META T1
+			WHERE
+				INDI_ID = #{indi_id}
+		
+	</select>
+	
+	<update id="updateDataIndicatorList" parameterType="map">
+		
+		UPDATE
+			INDICATOR_LIST_BACK_2020
+		SET
+			INDI_UNIT = #{indicator-unit},
+			INDI_ACCOUNT = #{indicator-expn},
+			IPCC_LARGE = #{ipcc-select-1},
+			IPCC_SMALL = #{ipcc-select-2},
+			INDI_CONSTRUCT = #{indicator-cont},
+			INDI_CONSTRUCT_METH = #{indicator-construct-meth},
+			INDI_DEDUCTION = #{indicator-deduction},
+			INDI_SPACE = #{indicator-space}
+		WHERE
+			INDI_ID = #{indi_id}
+			
+	</update>
+	
+	
+	<select id="getDataDistrictInfo" parameterType="map" resultType="hashMap">
+		
+		SELECT
+			DISTRICT_CD,
+			DISTRICT_NM
+		FROM
+		<choose>
+			<when test="tableCategory eq 'sd'.toString()">
+				DISTRICT_SD
+			</when>
+			
+			<when test="tableCategory eq 'sgg'.toString()">
+				DISTRICT_SGG
+			</when>
+			<otherwise>
+				DISTRICT_EMD
+			</otherwise>
+		</choose>
+
+	</select>
+	
+	<insert id="insertDataIndicatorData" parameterType="map">
+		 <foreach collection="valueList" item="item" >
+		 WITH UPSERT AS (
+	  	UPDATE INDICATOR_DATA_BAK_2021
+	  	SET
+				INDI_VAL    = #{item.district_val}::numeric
+		WHERE INDI_ID=#{indi_id} 
+				AND INDI_YEAR= #{indicator-update-year} 
+				AND DISTRICT_CD = #{item.district_cd}
+		RETURNING *)
+		INSERT INTO INDICATOR_DATA_BAK_2021
+			(
+				INDI_ID,
+				DISTRICT_CD,
+				INDI_VAL,
+				INDI_YEAR
+			)
+		SELECT			
+				#{indi_id},
+				#{item.district_cd},
+				#{item.district_val}::numeric,
+				#{indicator-update-year}
+			WHERE NOT EXISTS (SELECT * FROM UPSERT);
+			</foreach>
+	</insert>
+	
+	<!-- 메타 -->
+	
+	<select id="getMetaListView" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				*
+			FROM
+				REF_META_2022
+				<if test="keyword != null">
+			WHERE
+				META_NM LIKE '%' || #{keyword} || '%'
+				</if>
+			ORDER BY
+				META_ID DESC
+			LIMIT #{endRow}
+			) A
+		OFFSET
+			#{startRow}
+	</select>
+	
+	<select id="getMetaViewTotCnt" parameterType="map" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			REF_META_2022
+			<if test="keyword != null">
+		WHERE
+			META_NM LIKE '%' || #{keyword} || '%'
+			</if>
+	</select>
+	
+	<select id="getMetaIndicatorList" parameterType="map" resultType="hashMap">
+		SELECT
+			*			
+		FROM
+			REF_META_2022
+		WHERE
+			META_ID = #{meta_id}
+	</select>
+	
+	<update id="updateMetaIndicatorList" parameterType="map">
+		
+		UPDATE
+			REF_META_2022
+		SET
+			META_UNIT = #{meta_unit},
+			META_OFFER_ORG = #{meta_offer_org},
+			META_OFFER_DEPT = #{meta_offer_dept},
+			META_OFFER_SYSTEM = #{meta_offer_system},
+			META_POSITION = #{meta_position},
+			META_BASE_UNIT = #{meta_base_unit},
+			META_CON_UNIT = #{meta_con_unit},
+			META_DATA_TYPE = #{meta_data_type},
+			META_SCALE = #{meta_scale},
+			META_CON_YEAR = #{meta_con_year},
+			META_URL = #{meta_url}
+		WHERE
+			META_ID = #{meta_id}
+			
+	</update>
+	
+</mapper>

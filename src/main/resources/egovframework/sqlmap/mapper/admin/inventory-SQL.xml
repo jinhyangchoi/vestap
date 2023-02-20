@@ -1,0 +1,591 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="inventory">
+
+	
+	<!-- 테이블 명 수정 필요 -->
+	<select id="selectSidoList" resultType="EgovMap">
+		<![CDATA[
+			SELECT
+				SIDO_CD
+				,SIDO_NM
+			FROM 
+				TBL_SD  
+			ORDER BY 
+				SIDO_CD ASC
+		]]>
+	</select>
+	
+	<!-- TBL_SGG -> DISTRICT_SGG테이블로 변경(2019.11.12, 최진원) -->
+	<!-- SIGUNGU_CD, SIGUNGU_NM -> DISTRICT_CD, DISTRICT_NM 컬럼명 변경(2019.11.12, 최진원) -->
+	<select id="selectSigungulist" parameterType="EgovMap" resultType="EgovMap">
+		<![CDATA[
+			SELECT
+				SUBSTR(DISTRICT_CD, 0, 5) AS DISTRICT_CD , DISTRICT_NM
+			FROM 
+				DISTRICT_SGG
+			WHERE
+				DISTRICT_CD LIKE #{sidoCode}||'%'
+			ORDER BY
+				DISTRICT_CD ASC
+		]]>
+	</select>
+	
+	
+	<select id="getItemList" parameterType="map" resultType="hashMap">
+		
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_REGDATE) AS RNUM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = C.FIELD_ID) AS FIELD_NM,
+				TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2,
+				(SELECT DISTRICT_NM FROM (
+					SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = C.USER_DIST
+					UNION ALL
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = C.USER_DIST)D WHERE D.DISTRICT_CD = C.USER_DIST)
+				AS DISTRICT_NM,
+				*
+			FROM
+				(
+				
+					SELECT 
+						D.*, B.USER_DIST 
+					FROM 
+						ITEM_LIST_USER D
+					JOIN USER_INFO B
+					ON 
+						D.USER_ID = B.USER_ID
+				<if test="field != 'all'">
+				WHERE
+					FIELD_ID = #{field}
+				</if>
+				<!-- 날짜 선택여부에 따른 검색 결과 표시(2019.10.30~31, 최진원) -->
+				<if test="startdate != '' &amp;&amp; enddate != ''">
+					AND ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				<if test="startdate == '' &amp;&amp; enddate != ''">
+					<![CDATA[
+						AND ITEM_REGDATE <= TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+					]]>
+				</if>
+				<if test="startdate != '' &amp;&amp; enddate == ''">
+					<![CDATA[
+						AND ITEM_REGDATE >= TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD')
+					]]>
+				</if>
+				
+				) C
+			WHERE
+				<!-- USER_DIST LIKE '%' || #{sidoCode} || '%' -->
+				USER_DIST LIKE #{sidoCode} || '%'
+			<if test="keywordList != null">
+			and (
+				<foreach collection="keywordList" item="item" separator="OR">
+					ITEM_NM LIKE '%' || #{item} || '%'
+				</foreach>
+				)
+			</if>
+			ORDER BY rnum DESC
+			LIMIT #{endRow}
+			) B
+		OFFSET #{startRow}
+		
+	</select>
+	
+	<select id="getItemListTotCnt" parameterType="map" resultType="int">
+		
+		SELECT
+			COUNT(*)
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_ID) AS RNUM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = C.FIELD_ID) AS FIELD_NM,
+				TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2,
+				(SELECT DISTRICT_NM FROM (
+					SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = C.USER_DIST
+					UNION ALL
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = C.USER_DIST)D WHERE D.DISTRICT_CD = C.USER_DIST)
+				AS DISTRICT_NM,
+				*
+			FROM
+				(
+					SELECT 
+						D.*, B.USER_DIST 
+					FROM 
+						ITEM_LIST_USER D
+					JOIN USER_INFO B
+					ON 
+						D.USER_ID = B.USER_ID
+			<if test="field != 'all'">
+			WHERE
+				FIELD_ID = #{field}
+			</if>
+			<!-- 날짜 선택여부에 따른 검색 결과 표시(2019.10.30~31, 최진원) -->
+			<if test="startdate != '' &amp;&amp; enddate != ''">
+				AND ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+			</if>
+			<if test="startdate == ''  &amp;&amp; enddate != ''">
+				<![CDATA[
+					AND ITEM_REGDATE <= TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				]]>
+			</if>
+			<if test="startdate != ''  &amp;&amp; enddate == ''">
+				<![CDATA[
+					AND ITEM_REGDATE >= TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD')
+				]]>
+			</if>
+			) C
+		WHERE
+			1=1	
+		<if test="keywordList != null">
+				and (
+			<foreach collection="keywordList" item="item" separator="OR">
+				ITEM_NM LIKE '%' || #{item} || '%'
+			</foreach>
+			)
+		</if>
+			<!-- and USER_DIST LIKE '%' || #{sidoCode} || '%' -->
+			and USER_DIST LIKE #{sidoCode} || '%'
+			ORDER BY rnum DESC
+		) T
+	</select>
+	
+	<select id="getIndicatorInfo" parameterType="map" resultType="hashMap">
+		
+		SELECT
+			*,
+			CASE
+				WHEN INDI_CONSTRUCT_CD = 'VT001' THEN 'A'
+				WHEN INDI_CONSTRUCT_CD = 'VT002' THEN 'B'
+				WHEN INDI_CONSTRUCT_CD = 'VT003' THEN 'C'
+				WHEN INDI_CONSTRUCT_CD = 'VT008' THEN 'A`'
+				WHEN INDI_CONSTRUCT_CD = 'VT004' THEN 'B`'
+				WHEN INDI_CONSTRUCT_CD = 'VT005' THEN 'C`'
+				WHEN INDI_CONSTRUCT_CD = 'VT006' THEN 'D'
+				WHEN INDI_CONSTRUCT_CD = 'VT007' THEN 'E'
+			END AS INDI_CONSTRUCT
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY SECTOR_ID ASC, INDI_ID ASC) AS RNUM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = A.SECTOR_ID) AS SECTOR_NM,
+				A.INDI_ID,
+				CASE
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'SC' THEN (SELECT SCEN_NM FROM SCENARIO_LIST WHERE SCEN_ID = A.INDI_ID)
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'IC' THEN (SELECT INDI_NM FROM INDICATOR_LIST WHERE INDI_ID = A.INDI_ID)
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'IU' THEN (SELECT INDI_NM FROM INDICATOR_LIST_USER WHERE INDI_ID = A.INDI_ID)
+				END AS INDI_NM,
+				CASE
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'SC' THEN (SELECT SCEN_CONSTRUCT FROM SCENARIO_LIST WHERE SCEN_ID = A.INDI_ID)
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'IC' THEN (SELECT INDI_CONSTRUCT FROM INDICATOR_LIST WHERE INDI_ID = A.INDI_ID)
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'IU' THEN (SELECT INDI_CONSTRUCT FROM INDICATOR_LIST_USER WHERE INDI_ID = A.INDI_ID)
+				END AS INDI_CONSTRUCT_CD,
+				CASE
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'SC' THEN (SELECT (SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = SCEN_CONSTRUCT) FROM SCENARIO_LIST WHERE SCEN_ID = A.INDI_ID)
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'IC' THEN (SELECT (SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = INDI_CONSTRUCT) FROM INDICATOR_LIST WHERE INDI_ID = A.INDI_ID)
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'IU' THEN (SELECT (SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = INDI_CONSTRUCT) FROM INDICATOR_LIST_USER WHERE INDI_ID = A.INDI_ID)
+				END AS INDI_CONSTRUCT_NM,
+				CASE
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'SC' THEN (SELECT SCEN_UNIT FROM SCENARIO_LIST WHERE SCEN_ID = A.INDI_ID)
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'IC' THEN (SELECT INDI_UNIT FROM INDICATOR_LIST WHERE INDI_ID = A.INDI_ID)
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'IU' THEN (SELECT INDI_UNIT FROM INDICATOR_LIST_USER WHERE INDI_ID = A.INDI_ID)
+				END AS INDI_UNIT,
+				INDI_VAL_WEIGHT
+			FROM
+				ITEM_INDICATOR_USER A
+			WHERE
+				ITEM_ID = #{item_id}
+				<if test="sector_id != 'all'">
+				AND
+				SECTOR_ID = #{sector_id}
+				</if>
+			) B
+	</select>
+	
+	<select id="getItemInfo" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			ITEM_LIST_USER
+		WHERE
+			ITEM_ID = #{item_id}
+	</select>
+	
+	<!-- <select id="eventAreaStatisticsList" parameterType="map" resultType="hashMap">
+		SELECT (SELECT DISTRICT_CD FROM DISTRICT_SD X WHERE X.DISTRICT_NM = DISTRICT_NM_UNION) AS DISTRICT_CD, DISTRICT_NM_UNION, TOTAL FROM(
+		SELECT DISTRICT_NM_UNION, SUM(TOTAL) AS TOTAL FROM(
+		SELECT COALESCE(DISTRICT_NM,'기타') AS DISTRICT_NM_UNION, TOTAL
+		FROM
+		(SELECT
+			SPLIT_PART(DISTRICT_NM,' ',1) AS DISTRICT_NM
+			, count(*) AS TOTAL
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_REGDATE) AS RNUM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = C.FIELD_ID) AS FIELD_NM,
+				TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2,
+				(SELECT DISTRICT_NM FROM (
+					SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = C.USER_DIST
+					UNION ALL
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = C.USER_DIST)D WHERE D.DISTRICT_CD = C.USER_DIST)
+				AS DISTRICT_NM,
+				*
+			FROM
+				(
+				
+					SELECT 
+						D.*, B.USER_DIST 
+					FROM 
+						ITEM_LIST_USER D
+					JOIN USER_INFO B
+					ON 
+						D.USER_ID = B.USER_ID
+				<if test="field != 'all'">
+				WHERE
+					FIELD_ID = #{field}
+				</if>
+				날짜 선택여부에 따른 검색 결과 표시(2019.10.30~31, 최진원)
+				<if test="startdate != '' &amp;&amp; enddate != ''">
+					AND ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				<if test="startdate == '' &amp;&amp; enddate != ''">
+					<![CDATA[
+						AND ITEM_REGDATE <= TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+					]]>
+				</if>
+				<if test="startdate != '' &amp;&amp; enddate == ''">
+					<![CDATA[
+						AND ITEM_REGDATE >= TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD')
+					]]>
+				</if>
+				
+				) C
+			WHERE
+				USER_DIST LIKE '%' || #{sidoCode} || '%'
+				<choose>
+					<when test="sido !=0">
+						USER_DIST LIKE #{sido} || '%'
+					</when>
+					<otherwise>
+						USER_DIST LIKE '' || '%'
+					</otherwise>
+				</choose>
+				<if test="keyword != null">
+				AND ITEM_NM LIKE '%' || #{keyword} || '%'
+				</if>
+			ORDER BY rnum DESC
+			) B GROUP BY DISTRICT_NM ORDER 
+			BY 1 ASC) BASE)G
+			GROUP BY DISTRICT_NM_UNION)SD 
+			ORDER BY DISTRICT_CD
+	</select> -->
+	<select id="eventAreaStatisticsList" parameterType="map" resultType="hashMap">
+		SELECT COALESCE(DISTRICT_NM_UNION,'기타') AS DISTRICT_NM_UNION, TOTAL
+		FROM
+		(SELECT
+			SPLIT_PART(DISTRICT_NM,' ',1) AS DISTRICT_NM_UNION, count(*) AS TOTAL
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_REGDATE) AS RNUM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = C.FIELD_ID) AS FIELD_NM,
+				TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2,
+				(SELECT DISTRICT_NM FROM (
+					SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = C.USER_DIST
+					UNION ALL
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = C.USER_DIST)D WHERE D.DISTRICT_CD = C.USER_DIST)
+				AS DISTRICT_NM,
+				*
+			FROM
+				(
+				
+					SELECT 
+						D.*, B.USER_DIST 
+					FROM 
+						ITEM_LIST_USER D
+					JOIN USER_INFO B
+					ON 
+						D.USER_ID = B.USER_ID
+				<if test="field != 'all'">
+				WHERE
+					FIELD_ID = #{field}
+				</if>
+				<!-- 날짜 선택여부에 따른 검색 결과 표시(2019.10.30~31, 최진원) -->
+				<if test="startdate != '' &amp;&amp; enddate != ''">
+					AND ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				<if test="startdate == '' &amp;&amp; enddate != ''">
+					<![CDATA[
+						AND ITEM_REGDATE <= TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+					]]>
+				</if>
+				<if test="startdate != '' &amp;&amp; enddate == ''">
+					<![CDATA[
+						AND ITEM_REGDATE >= TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD')
+					]]>
+				</if>
+				
+				) C
+			WHERE
+				<!-- USER_DIST LIKE '%' || #{sidoCode} || '%' -->
+				<choose>
+					<when test="sido !=0">
+						USER_DIST LIKE #{sido} || '%'
+					</when>
+					<otherwise>
+						USER_DIST LIKE '' || '%'
+					</otherwise>
+				</choose>
+				<if test="keyword != null">
+				AND ITEM_NM LIKE '%' || #{keyword} || '%'
+				</if>
+			ORDER BY rnum DESC
+			) B
+			GROUP BY SPLIT_PART(DISTRICT_NM, ' ',1)
+			ORDER BY 1) BASE
+	</select>
+	
+	<!-- (시군구별 총합 통계 추출, 2019.10.28, 최진원) -->
+	<select id="eventDetailAreaStatisticsList111" parameterType="map" resultType="hashMap">
+		SELECT
+					(SELECT DISTRICT_NM FROM (
+						SELECT DISTRICT_CD,DISTRICT_NM
+						FROM DISTRICT_SD 
+						WHERE DISTRICT_CD = C.USER_DIST
+						
+						UNION ALL
+						
+						SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+						FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD 
+						WHERE A.DISTRICT_CD = C.USER_DIST)D 
+					WHERE D.DISTRICT_CD = C.USER_DIST 
+					AND DISTRICT_NM LIKE #{LOCAL} || '%')
+					AS DISTRICT_NM_LOCAL,
+					COUNT(CASE SUBSTR(C.USER_DIST,1,2) WHEN (SELECT DISTRICT_CD FROM DISTRICT_SD 
+						WHERE DISTRICT_NM = #{LOCAL}) 
+						THEN (SELECT DISTRICT_NM FROM (
+						
+						SELECT DISTRICT_CD,DISTRICT_NM
+						FROM DISTRICT_SD 
+						WHERE DISTRICT_CD = C.USER_DIST
+						
+						UNION ALL
+						
+						SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+						FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD 
+						WHERE A.DISTRICT_CD = C.USER_DIST)D 			
+					WHERE D.DISTRICT_CD = C.USER_DIST AND DISTRICT_NM LIKE #{LOCAL} || '%')
+					END) AS TOTAL
+			FROM
+					(
+						SELECT 
+							D.*, B.USER_DIST 
+						FROM 
+							ITEM_LIST_USER D
+						JOIN USER_INFO B
+						ON 
+							D.USER_ID = B.USER_ID
+							<if test="field != 'all'">
+							AND
+								FIELD_ID = #{field}
+							</if>
+							<if test="startdate != '' &amp;&amp; enddate != ''">
+								AND ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+							</if>
+					) C 
+			WHERE C.USER_DIST LIKE (SELECT DISTRICT_CD FROM DISTRICT_SD WHERE DISTRICT_NM = #{LOCAL})|| '%'
+			GROUP BY DISTRICT_NM_LOCAL 
+			ORDER BY DISTRICT_NM_LOCAL
+	</select>
+	
+	<select id="eventDetailAreaStatisticsList" parameterType="map" resultType="hashMap">
+		SELECT
+			SPLIT_PART(DISTRICT_NM,' ',1)||SPLIT_PART(DISTRICT_NM,' ',2) AS DISTRICT_NM_UNION, count(*) AS TOTAL
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_REGDATE) AS RNUM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = C.FIELD_ID) AS FIELD_NM,
+				TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2,
+				(SELECT DISTRICT_NM FROM (
+					SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = C.USER_DIST
+					UNION ALL
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = C.USER_DIST)D WHERE D.DISTRICT_CD = C.USER_DIST)
+				AS DISTRICT_NM,
+				*
+			FROM
+				(
+				
+					SELECT 
+						D.*, B.USER_DIST 
+					FROM 
+						ITEM_LIST_USER D
+					JOIN USER_INFO B
+					ON 
+						D.USER_ID = B.USER_ID
+				<if test="field != 'all'">
+				WHERE
+					FIELD_ID = #{field}
+				</if>
+				<!-- 날짜 선택여부에 따른 검색 결과 표시(2019.10.30~31, 최진원) -->
+				<if test="startdate != '' &amp;&amp; enddate != ''">
+					AND ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				<if test="startdate == '' &amp;&amp; enddate != ''">
+					<![CDATA[
+						AND ITEM_REGDATE <= TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+					]]>
+				</if>
+				<if test="startdate != '' &amp;&amp; enddate == ''">
+					<![CDATA[
+						AND ITEM_REGDATE >= TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD')
+					]]>
+				</if>
+				
+				) C
+			WHERE
+				<!-- USER_DIST LIKE '%' || #{sidoCode} || '%' -->
+				<choose>
+					<when test="sido !=0">
+						USER_DIST LIKE #{sido} || '%'
+					</when>
+					<otherwise>
+						USER_DIST LIKE '' || '%'
+					</otherwise>
+				</choose>
+				<if test="keyword != null">
+					AND ITEM_NM LIKE '%' || #{keyword} || '%'
+				</if>
+			ORDER BY rnum DESC
+			) B
+			GROUP BY SPLIT_PART(DISTRICT_NM,' ',1)||SPLIT_PART(DISTRICT_NM,' ',2)
+			ORDER BY 1
+	</select>
+	<!-- <select id="eventDetailAreaStatisticsList" parameterType="map" resultType="hashMap">
+			
+			
+			SELECT USER_DIST, 
+			CASE 
+				WHEN LENGTH(USER_DIST)=5 THEN (SELECT B.DISTRICT_NM||' '||A.DISTRICT_NM FROM DISTIRICT_SGG A JOIN DISTRICT_SD B ON(SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD)WHERE DISTRICT_CD = USER_DIST)
+				WHEN LENGTH(USER_DIST)=2 THEN (SELECT DISTRICT_NM FROM DISTIRICT_SD WHERE DISTRICT_CD = USER_DIST)
+				ELSE '기타' AS DISTRICT_NM_UNION
+			END AS 
+			FROM
+				(
+				
+					SELECT 
+						D.*, B.USER_DIST 
+					FROM 
+						ITEM_LIST_USER D
+					JOIN USER_INFO B
+					ON 
+						D.USER_ID = B.USER_ID
+				<if test="field != 'all'">
+				WHERE
+					FIELD_ID = #{field}
+				</if>
+				날짜 선택여부에 따른 검색 결과 표시(2019.10.30~31, 최진원)
+				<if test="startdate != '' &amp;&amp; enddate != ''">
+					AND ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				<if test="startdate == '' &amp;&amp; enddate != ''">
+					<![CDATA[
+						AND ITEM_REGDATE <= TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+					]]>
+				</if>
+				<if test="startdate != '' &amp;&amp; enddate == ''">
+					<![CDATA[
+						AND ITEM_REGDATE >= TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD')
+					]]>
+				</if>
+				
+				) C
+			WHERE
+				USER_DIST LIKE '%' || #{sidoCode} || '%'
+				<choose>
+					<when test="sido !=0">
+						USER_DIST LIKE #{sido} || '%'
+					</when>
+					<otherwise>
+						USER_DIST LIKE '' || '%'
+					</otherwise>
+				</choose>
+				<if test="keyword != null">
+					AND ITEM_NM LIKE '%' || #{keyword} || '%'
+				</if>
+	</select> -->
+
+	
+	<select id="downloadInventoryItem" parameterType="EgovMap" resultType="EgovMap">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_REGDATE) AS RNUM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = C.FIELD_ID) AS FIELD_NM,
+				TO_CHAR(ITEM_REGDATE, 'YYYY-MM-DD') AS ITEM_REGDATE2,
+				(SELECT DISTRICT_NM FROM (
+					SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = C.USER_DIST
+					UNION ALL
+					SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+					FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = C.USER_DIST)D WHERE D.DISTRICT_CD = C.USER_DIST)
+				AS DISTRICT_NM,
+				*
+			FROM
+				(
+				
+					SELECT 
+						D.*, B.USER_DIST 
+					FROM 
+						ITEM_LIST_USER D
+					JOIN USER_INFO B
+					ON 
+						D.USER_ID = B.USER_ID
+				<if test="field != 'all'">
+				WHERE
+					FIELD_ID = #{field}
+				</if>
+				<!-- 날짜 선택여부에 따른 검색 결과 표시(2019.10.30~31, 최진원) -->
+				<if test="startdate != '' &amp;&amp; enddate != ''">
+					AND ITEM_REGDATE BETWEEN TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD') AND TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+				</if>
+				<if test="startdate == '' &amp;&amp; enddate != ''">
+					<![CDATA[
+						AND ITEM_REGDATE <= TO_TIMESTAMP(#{enddate}, 'YYYY-MM-DD')
+					]]>
+				</if>
+				<if test="startdate != '' &amp;&amp; enddate == ''">
+					<![CDATA[
+						AND ITEM_REGDATE >= TO_TIMESTAMP(#{startdate}, 'YYYY-MM-DD')
+					]]>
+				</if>
+				
+				) C
+			WHERE
+				<choose>
+					<when test="sido !=0">
+						USER_DIST LIKE #{sido} || '%'
+					</when>
+					<otherwise>
+						USER_DIST LIKE '' || '%'
+					</otherwise>
+				</choose>
+			<if test="keyword != null">
+			AND ITEM_NM LIKE '%' || #{keyword} || '%'
+			</if>
+			ORDER BY rnum DESC
+			) B
+	</select>
+
+</mapper>

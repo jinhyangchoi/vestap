@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="faq">
+	
+	<sql id="boardList">
+		WITH RESULT_SET AS(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY BBS_IDX ASC) AS RNUM,
+				*
+			FROM
+				BOARD_FAQ
+			<if test="keywordList != null">
+			WHERE
+				<choose>
+					<when test="category == 'all'">
+						<foreach collection="keywordList" item="item" separator="OR">
+						(
+							LOWER(BBS_TITLE) LIKE '%' || LOWER(#{item}) || '%'
+							OR
+							LOWER(BBS_CONTENT) LIKE '%' || LOWER(#{item}) || '%'
+							OR
+							LOWER(BBS_WRITER) LIKE '%' || LOWER(#{item}) || '%'
+						)
+						</foreach>
+					</when>
+					<otherwise>
+						<foreach collection="keywordList" item="item" separator="OR">
+							LOWER(${category}) LIKE '%' || LOWER(#{item}) || '%'
+						</foreach>
+					</otherwise>
+				</choose>
+			</if>
+		)
+	</sql>
+	
+	<select id="getFaqList" parameterType="vestap.sys.bbs.cmm.BoardVO" resultType="vestap.sys.bbs.cmm.BoardVO">
+		
+		<include refid="boardList"/>
+		
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				RNUM,
+				BBS_IDX,
+				BBS_TITLE,
+				BBS_CONTENT,
+				BBS_WRITER,
+				TO_CHAR(BBS_REGDATE, 'YYYY-MM-DD') AS BBS_REGDATE,
+				BBS_HIT,
+				BBS_USE
+			FROM
+				RESULT_SET
+			order by RNUM desc
+			LIMIT #{endRow}
+			) A
+		OFFSET #{startRow}
+		
+	</select>
+	
+	<select id="getFaqTotCnt" parameterType="vestap.sys.bbs.cmm.BoardVO" resultType="int">
+		
+		<include refid="boardList"/>
+		
+		SELECT
+			COUNT(*)
+		FROM
+			RESULT_SET
+	</select>
+	
+	<select id="getFaqContent" parameterType="int" resultType="vestap.sys.bbs.cmm.BoardVO">
+		SELECT
+			BBS_TITLE,
+			BBS_CONTENT,
+			BBS_WRITER,
+			TO_CHAR(BBS_REGDATE, 'YYYY-MM-DD') AS BBS_REGDATE,
+			BBS_HIT,
+			BBS_USE
+		FROM
+			BOARD_FAQ
+		WHERE
+			BBS_IDX = #{param}
+	</select>
+	
+	<select id="getFaqFile" parameterType="int" resultType="vestap.sys.bbs.cmm.BoardFileVO">
+		SELECT
+			BBS_IDX,
+			ORG_FILE_NM,
+			STD_FILE_NM,
+			FILE_PATH,
+			FILE_HIT
+		FROM
+			BOARD_FILE
+		WHERE
+			BBS_IDX = #{param}
+			AND
+			BBS_NM = 'faq'
+			
+	</select>
+	
+	<select id="getFaqFileInfo" parameterType="vestap.sys.bbs.cmm.BoardFileVO" resultType="vestap.sys.bbs.cmm.BoardFileVO">
+		SELECT
+			BBS_IDX,
+			ORG_FILE_NM,
+			STD_FILE_NM,
+			FILE_PATH,
+			FILE_HIT
+		FROM
+			BOARD_FILE
+		WHERE
+			BBS_IDX = #{bbs_idx}
+			AND
+			STD_FILE_NM = #{std_file_nm}
+	</select>
+	
+	<update id="setFaqFileHit" parameterType="vestap.sys.bbs.cmm.BoardFileVO">
+		UPDATE
+			BOARD_FILE
+		SET
+			FILE_HIT = FILE_HIT + 1
+		WHERE
+			BBS_IDX = #{bbs_idx}
+			AND
+			STD_FILE_NM = #{std_file_nm}
+	</update>
+	
+	<update id="setFaqHit" parameterType="int">
+		UPDATE
+			BOARD_FAQ
+		SET
+			BBS_HIT = BBS_HIT + 1
+		WHERE
+			BBS_IDX = #{param}
+	</update>
+	
+	<insert id="setFaqBoard" parameterType="vestap.sys.bbs.cmm.BoardVO">
+		
+		INSERT INTO
+			BOARD_FAQ
+			(
+				BBS_TITLE,
+				BBS_CONTENT,
+				BBS_WRITER,
+				BBS_REGDATE,
+				BBS_USE
+			)
+			VALUES
+			(
+				#{bbs_title},
+				#{bbs_content},
+				#{bbs_writer},
+				NOW(),
+				'Y'
+			)
+		<selectKey keyProperty="bbs_idx" resultType="int" order="AFTER">
+			SELECT CURRVAL('SEQ_FAQ_IDX')
+		</selectKey>
+	</insert>
+	
+	<insert id="setBoardFile" parameterType="java.util.List">
+		INSERT INTO
+			BOARD_FILE
+			(
+				BBS_IDX,
+				BBS_NM,
+				ORG_FILE_NM,
+				STD_FILE_NM,
+				FILE_PATH
+			)
+			VALUES
+			<foreach collection="list" item="item" separator=",">
+			(
+				#{item.bbs_idx},
+				#{item.bbs_nm},
+				#{item.org_file_nm},
+				#{item.std_file_nm},
+				#{item.file_path}
+			)
+			</foreach>
+			
+	</insert>
+	
+	<update id="updateFaqBoard" parameterType="vestap.sys.bbs.cmm.BoardVO">
+		UPDATE
+			BOARD_FAQ
+		SET
+			BBS_TITLE = #{bbs_title},
+			BBS_CONTENT = #{bbs_content}
+		WHERE
+			BBS_IDX = #{bbs_idx}
+	</update>
+	
+	<delete id="deleteFaq" parameterType="int">
+		DELETE FROM
+			BOARD_FAQ
+		WHERE
+			BBS_IDX = #{param}
+	</delete>
+	
+	<delete id="deleteFaqFile" parameterType="int">
+		DELETE FROM
+			BOARD_FILE
+		WHERE
+			BBS_IDX = #{param}
+	</delete>
+	
+	<delete id="deleteFaqFileOne" parameterType="vestap.sys.bbs.cmm.BoardFileVO">
+		DELETE FROM
+			BOARD_FILE
+		WHERE
+			BBS_IDX = #{bbs_idx}
+			AND
+			STD_FILE_NM = #{std_file_nm}
+	</delete>
+</mapper>

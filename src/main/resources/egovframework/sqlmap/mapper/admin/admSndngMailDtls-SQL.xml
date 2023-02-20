@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="admSndngMailDtlsDAO">
+
+	<!-- 발송메일 내역조회 -->
+	<select id="admSndngMailDtlsDAO.selectSndngMailList_D" parameterType="vestap.adm.ems.service.AdmSndngMailVO" resultType="vestap.adm.ems.service.AdmSndngMailVO">
+	/* admSndngMailDtlsDAO.selectSndngMailList_D */
+		<![CDATA[
+		SELECT S.*
+		  FROM  (SELECT ROW_NUMBER() OVER(ORDER BY AA.mssageId DESC) AS "RNUM", AA.*
+       		       FROM  (
+							SELECT dtls.mssageId
+							     , dtls.sndngResultCode
+							     , dtls.sndngResultNm
+							     , dtls.sndr
+							     , dtls.rcverId
+							     , dtls.rcverNm
+							     , dtls.rcver
+							     , dtls.sj
+							     , dtls.sndngDe
+							  FROM (
+									SELECT mssage_id AS mssageId
+									     , sndng_result_code sndngResultCode
+									     , CASE WHEN sndng_result_code='R' THEN '성공'
+										        WHEN sndng_result_code='F' THEN '실패'
+										        WHEN sndng_result_code='C' THEN '성공'
+										   ELSE sndng_result_code
+										    END sndngResultNm
+									     , sndr AS sndr
+									     , rcver_id AS rcverId
+									     , rcver_nm AS rcverNm
+									     , rcver AS rcver
+									     , sj AS sj
+									     , TO_CHAR(( dsptch_dt ), 'YYYY년 MM월 DD일 AM HH:MI') AS sndngDe
+									  FROM COMTHEMAILDSPTCHMANAGE
+									  WHERE 1=1
+									]]>
+									<choose>
+										<when test="searchCondition ==1">
+											<![CDATA[	AND rcver_id LIKE '%' || #{searchKeyword} || '%'	]]>
+										</when>
+										<when test="searchCondition ==2">
+											<![CDATA[	AND rcver_nm LIKE '%' || #{searchKeyword} || '%'	]]>
+										</when>
+										<when test="searchCondition ==3">
+											<![CDATA[	AND rcver LIKE '%' || #{searchKeyword} || '%'	]]>
+										</when>
+										<when test="searchCondition ==4">
+											<![CDATA[	AND sndr LIKE '%' || #{searchKeyword} || '%'	]]>
+										</when>
+									</choose>
+									
+									<choose>
+										<when test="searchResultCode ==1">
+											<![CDATA[	AND sndng_result_code IN('R', 'C')	]]>
+										</when>
+										<when test="searchResultCode ==2">
+											<![CDATA[	AND sndng_result_code = 'F'	]]>
+										</when>
+									</choose>
+		<![CDATA[
+					) dtls
+				) AA
+			) S
+		WHERE "RNUM" BETWEEN #{startRow} AND #{endRow}
+		]]>
+	</select>
+
+	<!-- 발송메일 내역 총건수 조회 -->
+	<select id="admSndngMailDtlsDAO.selectSndngMailListTotCnt_S" parameterType="vestap.adm.ems.service.AdmSndngMailVO" resultType="int">
+		<![CDATA[
+		SELECT COUNT(*) AS totcnt
+		  FROM COMTHEMAILDSPTCHMANAGE
+		 WHERE 1=1
+		]]>
+		<choose>
+			<when test="searchCondition ==1">
+				<![CDATA[	AND rcver_id LIKE '%' || #{searchKeyword} || '%'	]]>
+			</when>
+			<when test="searchCondition ==2">
+				<![CDATA[	AND rcver_nm LIKE '%' || #{searchKeyword} || '%'	]]>
+			</when>
+			<when test="searchCondition ==3">
+				<![CDATA[	AND rcver LIKE '%' || #{searchKeyword} || '%'	]]>
+			</when>
+			<when test="searchCondition ==4">
+				<![CDATA[	AND sndr LIKE '%' || #{searchKeyword} || '%'	]]>
+			</when>
+		</choose>
+		
+		<choose>
+			<when test="searchResultCode ==1">
+				<![CDATA[	AND sndng_result_code IN('R', 'C')	]]>
+			</when>
+			<when test="searchResultCode ==2">
+				<![CDATA[	AND sndng_result_code = 'F'	]]>
+			</when>
+		</choose>
+	</select>
+	
+</mapper>

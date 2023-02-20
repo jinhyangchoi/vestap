@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user">
+	
+	<!-- 사용자 정보 -->
+	<select id="getUserInfo" parameterType="String" resultType="vestap.sys.sec.user.UserAccessVO">
+	/* user-SQL.xml getUserInfo */
+	<![CDATA[
+		SELECT
+			   A.USER_ID,
+		       A.USER_PW,
+		       A.USER_NM,
+		       A.USER_RCP,
+		       A.USER_SCR,
+		       A.USER_FLD,
+		       A.USER_AUTH,
+		       A.USER_DIST,
+		       A.USER_DISTRICT,
+		       A.USER_ITEM,
+		       A.USER_YEAR,
+		       TO_CHAR(A.USER_ACCESS, 'YYYY년 MM월 DD일 AM HH:MI') USER_ACCESS,
+		       A.USER_EMAIL,
+		       A.USER_ORG_NM,
+		       A.USER_GOV_YN,
+		       A.USE_YN,
+		       TO_CHAR(( NOW() ), 'YYYY년 MM월 DD일 AM HH:MI') NOW,
+		       TO_CHAR((A.APRV_DT), 'YYYY년 MM월 DD일 AM HH:MI') APRV_DT,       
+		       CASE A.USER_GOV_YN
+		              WHEN 'Y' THEN TO_CHAR(( A.APRV_DT + '5YEAR' ), 'YYYY년 MM월 DD일 AM HH:MI')
+		              WHEN 'N' THEN TO_CHAR(( A.APRV_DT + '1YEAR' ), 'YYYY년 MM월 DD일 AM HH:MI')
+		        END AS USER_EXPIRE,
+		       A.FILE_ATCH_YN,
+		       A.FILE_IDX,
+		       B.ORG_FILE_NM,
+		       B.STD_FILE_NM,
+		       B.FILE_PATH
+		 FROM USER_INFO A LEFT OUTER JOIN USER_FILE B ON A.FILE_IDX = B.FILE_IDX
+		WHERE A.USE_YN = 'Y'
+		  AND CASE A.USER_GOV_YN
+                   WHEN 'Y' THEN NOW() <= ( A.aprv_dt + '5year' )
+                   WHEN 'N' THEN NOW() <= ( A.aprv_dt + '1year' )
+               END
+		  AND A.USER_ID = #{param}
+	]]>
+	</select>
+	
+	<update id="updateUserAccess" parameterType="String">
+		UPDATE
+			USER_INFO
+		SET
+			USER_ACCESS = NOW()
+		WHERE
+			USER_ID = #{param}
+	</update>
+	
+	<insert id="insertAccessLog" parameterType="String">
+		INSERT INTO
+			ACCESS_LOG
+		VALUES
+			(
+				NOW(),
+				#{userId},
+				#{userIp}
+			)
+	</insert>
+	
+</mapper>

@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="sysItem">
+
+	<select id="getItemList" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				*
+			FROM
+				ITEM_LIST_SYS
+			WHERE
+				FIELD_ID = #{field_id}
+				<if test="keyword != null">
+				AND
+				ITEM_NM LIKE '%' || #{keyword} || '%'
+				</if>
+			ORDER BY
+				ITEM_ID DESC
+			LIMIT
+				#{endRow}
+			) A
+		OFFSET
+			#{startRow}
+	</select>
+	
+	<select id="getItemListTotCnt" parameterType="map" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			ITEM_LIST_SYS
+		WHERE
+			FIELD_ID = #{field_id}
+			<if test="keyword != null">
+			AND
+			ITEM_NM LIKE '%' || #{keyword} || '%'
+			</if>
+	</select>
+	
+	<select id="getItemIndicator" parameterType="map" resultType="hashMap">
+		
+		SELECT
+			A.*,
+			CASE
+				<!-- ====================================================================================================================
+				01. ITEM ID의 헤더가 IU일 경우 사용자 정의 테이블 참조
+				==================================================================================================================== -->
+				WHEN SUBSTRING(INDI_ID, 1, 2) = 'IU'
+					THEN (
+						SELECT
+							INDI_NM
+						FROM
+							INDICATOR_LIST_SYS
+						WHERE
+							INDI_ID = A.INDI_ID
+						)
+				
+				<!-- ====================================================================================================================
+				02. ITEM ID의 헤더가 IC일 경우 INDICATOR_LIST 테이블 참조
+				==================================================================================================================== -->
+				WHEN SUBSTRING(INDI_ID, 1, 2) = 'IC'
+					THEN (
+						SELECT
+							INDI_NM
+						FROM
+							INDICATOR_LIST_SYS
+						WHERE
+							INDI_ID = A.INDI_ID
+						)
+						
+				<!-- ====================================================================================================================
+				03. ITEM ID의 헤더가 SC일 경우 SCENARIO_LIST 테이블 참조
+				==================================================================================================================== -->
+				WHEN SUBSTRING(INDI_ID, 1, 2) = 'SC'
+					THEN (
+						SELECT
+							SCEN_NM
+						FROM
+							SCENARIO_LIST
+						WHERE
+							SCEN_ID = A.INDI_ID
+						)
+			END
+			AS INDI_NM
+		FROM
+			${dataTable} A
+		WHERE
+			A.ITEM_ID = #{item_id}
+			
+	</select>
+	
+	<select id="getItemListInfo" parameterType="map" resultType="hashMap">
+		
+		SELECT
+			*,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = FIELD_ID) AS FIELD_NM
+		FROM
+			${listTable}
+		WHERE
+			ITEM_ID = #{item_id}
+			
+	</select>
+	
+	<select id="isItemName" parameterType="map" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			ITEM_LIST_SYS
+		WHERE
+			REPLACE(ITEM_NM, ' ', '') = REPLACE(#{itemName}, ' ', '')
+			<if test="item_id != null">
+			AND
+			ITEM_ID != #{item_id}
+			</if>
+	</select>
+	
+	<delete id="deleteItemIndicator" parameterType="map">
+		DELETE FROM
+			ITEM_INDICATOR_SYS
+		WHERE
+			ITEM_ID = 
+			(
+			SELECT
+				ITEM_ID
+			FROM
+				ITEM_LIST_SYS
+			WHERE
+				ITEM_ID = #{item_id}
+			)
+	</delete>
+	
+	<update id="updateItemList" parameterType="map">
+		UPDATE
+			ITEM_LIST_SYS
+		SET
+			ITEM_NM = #{item_nm},
+			ITEM_ACCOUNT = #{item_account},
+			FIELD_ID = #{field_id},
+			CE_WEIGHT = #{ce_weight}::numeric,
+			CS_WEIGHT = #{cs_weight}::numeric,
+			AA_WEIGHT = #{aa_weight}::numeric,
+			ITEM_REGDATE = NOW()
+		WHERE
+			ITEM_ID = #{item_id}
+	</update>
+	
+	<insert id="insertItemIndicator" parameterType="map">
+		INSERT INTO
+			ITEM_INDICATOR_SYS
+			(
+				ITEM_ID,
+				SECTOR_ID,
+				INDI_ID,
+				INDI_VAL_WEIGHT
+			)
+		VALUES
+			<foreach collection="indicatorList" item="item" separator=",">
+			(
+				#{item_id},
+				#{item.sector},
+				#{item.indi_id},
+				#{item.weight}::numeric
+			)
+			</foreach>
+	</insert>
+	
+	<insert id="insertClimateOption" parameterType="map">
+		<foreach collection="indicatorList" item="item" separator=";">
+			<if test="item.indi_id.substring(0,2) eq 'SC'.toString()">
+				INSERT INTO
+					CLIMATE_OPTION_SYS
+				(ITEM_ID, MDL_ID, RCP_ID, YEAR_ID)
+				SELECT 
+					DISTINCT #{item_id}::TEXT AS ITEM_ID, MDL_ID, SCEN_SECTION, SCEN_YEAR
+				FROM 
+					SCENARIO_DATA
+				WHERE 
+					SCEN_ID = #{item.indi_id}
+				ORDER BY 2,3,4
+				ON CONFLICT ON CONSTRAINT climate_option_sys_pkey
+				DO NOTHING
+			</if>
+		</foreach>
+	</insert>
+	
+	<delete id="deleteClimateOption" parameterType="map">
+		DELETE FROM
+			CLIMATE_OPTION_SYS
+		WHERE
+			ITEM_ID = 
+			(
+			SELECT
+				ITEM_ID
+			FROM
+				ITEM_LIST_SYS
+			WHERE
+				ITEM_ID = #{item_id}
+			)
+	</delete>
+	
+	<select id="getItemSequence" resultType="int">
+		SELECT NEXTVAL('seq_item_list_sys_idx')
+	</select>
+	
+	<insert id="insertItemList" parameterType="map">
+		INSERT INTO
+			ITEM_LIST_SYS
+			(
+				ITEM_ID,
+				ITEM_NM,
+				ITEM_ACCOUNT,
+				FIELD_ID,
+				CE_WEIGHT,
+				CS_WEIGHT,
+				AA_WEIGHT,
+				ITEM_REGDATE,
+				ITEM_MODDATE
+			)
+		VALUES
+			(
+				#{item_id},
+				#{item_nm},
+				#{item_account},
+				#{field_id},
+				#{ce_weight}::numeric,
+				#{cs_weight}::numeric,
+				#{aa_weight}::numeric,
+				NOW(),
+				NOW()
+			)
+		
+	</insert>
+	
+	<delete id="deleteItemList" parameterType="map">
+		DELETE FROM
+			ITEM_LIST_SYS
+		WHERE
+			ITEM_ID = #{item_id}
+	</delete>
+	
+	<select id="getIndicatorDataInfo" parameterType="map" resultType="hashMap">
+		<!-- 
+		WITH 구문의 USER_INDI는 사용자가 URL을 이용하여 자신이 아닌 타인의 지표 데이터를 열람하는 것을 막기 위함
+		 -->
+		WITH USER_INDI_SET AS(
+			SELECT
+				INDI_ID
+			FROM
+				INDICATOR_LIST_SYS
+			WHERE
+				INDI_ID = #{indi_id}
+		)
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY C.DISTRICT_CD) AS RNUM,
+				C.*,
+				D.DISTRICT_NM
+			FROM
+				(
+				SELECT
+					*
+				FROM
+					INDICATOR_DATA_SYS A,
+					USER_INDI_SET B
+				WHERE
+					A.INDI_ID = B.INDI_ID
+				) C
+			INNER JOIN
+				(
+				SELECT
+					DISTRICT_CD,
+					DISTRICT_NM
+				FROM
+				<choose>
+					<when test="tableCategory eq 'sgg'.toString()">
+						DISTRICT_SGG
+					</when>
+					<when test="tableCategory eq 'adm'.toString()">
+						DISTRICT_SGG
+					</when>
+					<otherwise>
+						DISTRICT_EMD
+					</otherwise>
+				</choose>
+				) D
+			ON
+				C.DISTRICT_CD = D.DISTRICT_CD
+			<if test="isPage eq 'Y'.toString()">
+			LIMIT #{endRow}
+			</if>
+			) E
+		<if test="isPage eq 'Y'.toString()">
+		OFFSET #{startRow}
+		</if>
+	</select>
+	
+	<select id="getUserGroupIndicator" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				*
+			FROM
+				INDICATOR_LIST_SYS
+			WHERE
+				INDI_GROUP = #{group_id}
+			ORDER BY
+				INDI_ID DESC
+			LIMIT #{endRow}
+			) A
+		OFFSET #{startRow}
+		
+	</select>
+	
+	<select id="getUserGroupIndicatorTotCnt" parameterType="map" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			INDICATOR_LIST_SYS
+		WHERE
+			INDI_GROUP = #{group_id}
+	</select>
+	
+	<select id="getSytmGroupIndicator" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				INDI_ID,
+				INDI_NM,
+				INDI_UNIT,
+				INDI_GROUP,
+				IPCC_LARGE,
+				IPCC_SMALL,
+				INDI_ACCOUNT,
+				INDI_CONSTRUCT
+			FROM
+				INDICATOR_LIST
+			WHERE
+				INDI_GROUP = #{group_id}
+			ORDER BY
+				INDI_ID DESC
+			LIMIT #{endRow}
+			) A
+		OFFSET #{startRow}
+		
+	</select>
+	
+	<select id="getSytmGroupIndicatorTotCnt" parameterType="map" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			INDICATOR_LIST
+		WHERE
+			INDI_GROUP = #{group_id}
+	</select>
+	
+	<select id="getScenGroupIndicator" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				SCEN_ID AS INDI_ID,
+				SCEN_NM AS INDI_NM,
+				SCEN_UNIT AS INDI_UNIT,
+				SCEN_GROUP AS INDI_GROUP,
+				IPCC_LARGE,
+				IPCC_SMALL,
+				SCEN_ACCOUNT AS INDI_ACCOUNT,
+				SCEN_CONSTRUCT AS INDI_CONSTRUCT
+			FROM
+				SCENARIO_LIST
+			WHERE
+				SCEN_GROUP = #{group_id}
+			ORDER BY
+				SCEN_ID DESC
+			LIMIT #{endRow}
+			) A
+		OFFSET #{startRow}
+		
+	</select>
+	
+	<select id="getScenGroupIndicatorTotCnt" parameterType="map" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			SCENARIO_LIST
+		WHERE
+			SCEN_GROUP = #{group_id}
+	</select>
+	
+	<select id="getTemplateItemList" parameterType="map" resultType="hashMap">
+		
+		SELECT
+			*
+		FROM
+			ITEM_LIST
+		WHERE
+			FIELD_ID = #{field_id}
+		ORDER BY
+			ITEM_ID DESC
+			
+	</select>
+</mapper>

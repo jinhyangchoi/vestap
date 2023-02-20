@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="indicator">
+	
+	<select id="getUserInfo" parameterType="String" resultType="vestap.sys.sec.user.UserAccessVO">
+		SELECT
+			*
+		FROM
+			USER_INFO
+		WHERE
+			USER_ID = #{param}
+	</select>
+	
+	<select id="getDistrictInfo" parameterType="map" resultType="hashMap">
+		
+		SELECT
+			<!-- SUBSTR(DISTRICT_CD, 0, 5) AS DISTRICT_CD , DISTRICT_NM -->
+			DISTRICT_CD,
+			DISTRICT_NM
+		FROM
+		<choose>
+			<when test="tableCategory eq 'sd'.toString()">
+				DISTRICT_SD
+			</when>
+			<when test="tableCategory eq 'sgg'.toString()">
+				DISTRICT_SGG
+			WHERE
+				DISTRICT_CD LIKE #{code} || '%'
+			</when>
+			<otherwise>
+				DISTRICT_EMD
+			WHERE
+				DISTRICT_CD LIKE #{code} || '%'
+			</otherwise>
+		</choose>
+			
+	</select>
+	
+	<select id="getFieldInfo" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			REF_CODE
+		WHERE
+			CODE_GROUP = 'FIELD'
+		ORDER BY
+			CODE_ID ASC
+	</select>
+	
+	<select id="isIndicatorName" parameterType="map" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			INDICATOR_LIST_USER
+		WHERE
+			REPLACE(INDI_NM, ' ', '') = REPLACE(#{indiName}, ' ', '')
+			AND
+			USER_ID = #{user}
+			<if test="indi_id != null">
+			AND
+			INDI_ID != #{indi_id}
+			</if>
+	</select>
+	
+	<select id="getIpccList" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			REF_CODE
+		WHERE
+			CODE_GROUP = #{ipcc}
+			<if test="parent != null">
+			AND
+			PARENT_CODE = #{parent}
+			</if>
+	</select>
+	
+	<select id="getIndicatorSequence" resultType="int">
+		SELECT NEXTVAL('seq_indicator_user_idx')
+	</select>
+	
+	<insert id="insertIndicatorList" parameterType="map">
+		INSERT INTO
+			INDICATOR_LIST_USER
+			(
+				INDI_ID,
+				INDI_NM,
+				INDI_UNIT,
+				INDI_ACCOUNT,
+				IPCC_LARGE,
+				IPCC_SMALL,
+				INDI_CONSTRUCT,
+				USER_ID,
+				INDI_GROUP,
+				ITEM_REGDATE
+			)
+		VALUES
+			(
+				#{indi_id},
+				#{indicator-name},
+				#{indicator-unit},
+				#{indicator-expn},
+				#{ipcc-select-1},
+				#{ipcc-select-2},
+				#{indicator-cont},
+				#{userName},
+				#{indi_group},
+				NOW()
+			)
+	</insert>
+	
+	<insert id="insertIndicatorData" parameterType="map">
+		INSERT INTO
+			INDICATOR_DATA_USER
+			(
+				INDI_ID,
+				DISTRICT_CD,
+				INDI_VAL,
+				INDI_YEAR
+			)
+		VALUES
+			<foreach collection="valueList" item="item" separator=",">
+			(
+				#{indi_id},
+				#{item.district_cd},
+				#{item.district_val}::numeric,
+				TO_CHAR(NOW(), 'YYYY')
+			)
+			</foreach>
+	</insert>
+	
+	<select id="getIndicatorListView" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				*,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = IPCC_LARGE) AS IPCC_LARGE_NM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = IPCC_SMALL) AS IPCC_SMALL_NM
+			FROM
+				INDICATOR_LIST_USER
+			WHERE
+				USER_ID = #{userName}
+				<if test="keyword != null">
+				AND
+				INDI_NM LIKE '%' || #{keyword} || '%'
+				</if>
+			ORDER BY
+				INDI_ID DESC
+			LIMIT #{endRow}
+			) A
+		OFFSET
+			#{startRow}
+	</select>
+	
+	<select id="getIndicatorListViewTotCnt" parameterType="map" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			INDICATOR_LIST_USER
+		WHERE
+			USER_ID = #{userName}
+			<if test="keyword != null">
+			AND
+			INDI_NM LIKE '%' || #{keyword} || '%'
+			</if>
+	</select>
+	
+	<select id="getReferenceName" parameterType="String" resultType="String">
+		SELECT
+			CODE_NM
+		FROM
+			REF_CODE
+		WHERE
+			CODE_ID = #{param}
+	</select>
+	
+	<select id="getUserIndicatorList" parameterType="map" resultType="hashMap">
+		SELECT
+			*,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = INDI_CONSTRUCT) AS INDI_CONSTRUCT_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = IPCC_LARGE) AS IPCC_LARGE_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = IPCC_SMALL) AS IPCC_SMALL_NM
+		FROM
+			INDICATOR_LIST_USER
+		WHERE
+			INDI_ID = #{indi_id}
+			AND
+			USER_ID = #{userName}
+	</select>
+	
+	<select id="getSytmIndicatorList" parameterType="map" resultType="hashMap">
+		SELECT
+			INDI_ID,
+			INDI_NM,
+			INDI_UNIT,
+			INDI_GROUP,
+			IPCC_LARGE,
+			IPCC_SMALL,
+			INDI_ACCOUNT,
+			INDI_CONSTRUCT,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = INDI_CONSTRUCT) AS INDI_CONSTRUCT_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = IPCC_LARGE) AS IPCC_LARGE_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = IPCC_SMALL) AS IPCC_SMALL_NM
+		FROM
+			INDICATOR_LIST
+		WHERE
+			INDI_ID = #{indi_id}
+	</select>
+	
+	<select id="getScenIndicatorList" parameterType="map" resultType="hashMap">
+		SELECT
+			SCEN_ID AS INDI_ID,
+			SCEN_NM AS INDI_NM,
+			SCEN_UNIT AS INDI_UNIT,
+			SCEN_GROUP AS INDI_GROUP,
+			IPCC_LARGE,
+			IPCC_SMALL,
+			SCEN_ACCOUNT AS INDI_ACCOUNT,
+			SCEN_CONSTRUCT AS INDI_CONSTRUCT,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = SCEN_CONSTRUCT) AS INDI_CONSTRUCT_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = IPCC_LARGE) AS IPCC_LARGE_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = IPCC_SMALL) AS IPCC_SMALL_NM
+		FROM
+			SCENARIO_LIST
+		WHERE
+			SCEN_ID = #{indi_id}
+	</select>
+	
+	<select id="getIndicatorDataInfo" parameterType="map" resultType="hashMap">
+		<!-- 
+		WITH 구문의 USER_INDI는 사용자가 URL을 이용하여 자신이 아닌 타인의 지표 데이터를 열람하는 것을 막기 위함
+		 -->
+		WITH USER_INDI_SET AS(
+			SELECT
+				INDI_ID
+			FROM
+				INDICATOR_LIST_USER
+			WHERE
+				USER_ID = #{userName}
+				AND
+				INDI_ID = #{indi_id}
+		)
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY C.DISTRICT_CD) AS RNUM,
+				C.*,
+				D.DISTRICT_NM
+			FROM
+				(
+				SELECT
+					*
+				FROM
+					INDICATOR_DATA_USER A,
+					USER_INDI_SET B
+				WHERE
+					A.INDI_ID = B.INDI_ID
+				) C
+			INNER JOIN
+				(
+				SELECT
+					DISTRICT_CD,
+					DISTRICT_NM
+				FROM
+				<choose>
+					<when test="tableCategory eq 'sgg'.toString()">
+						DISTRICT_SGG
+					</when>
+					<otherwise>
+						DISTRICT_EMD
+					</otherwise>
+				</choose>
+				) D
+			ON
+				C.DISTRICT_CD = D.DISTRICT_CD
+			<if test="isPage eq 'Y'.toString()">
+			LIMIT #{endRow}
+			</if>
+			) E
+		<if test="isPage eq 'Y'.toString()">
+		OFFSET #{startRow}
+		</if>
+	</select>
+	
+	
+	<select id="getIndicatorDataInfoTotCnt" parameterType="map" resultType="int">
+		WITH USER_INDI_SET AS(
+			SELECT
+				INDI_ID
+			FROM
+				INDICATOR_LIST_USER
+			WHERE
+				USER_ID = #{userName}
+				AND
+				INDI_ID = #{indi_id}
+		)
+		SELECT
+			COUNT(*)
+		FROM
+			INDICATOR_DATA_USER A,
+			USER_INDI_SET B
+		WHERE
+			A.INDI_ID = B.INDI_ID
+	</select>
+	
+	<update id="updateIndicatorList" parameterType="map">
+		
+		UPDATE
+			INDICATOR_LIST_USER
+		SET
+			INDI_NM = #{indicator-name},
+			INDI_UNIT = #{indicator-unit},
+			INDI_ACCOUNT = #{indicator-expn},
+			IPCC_LARGE = #{ipcc-select-1},
+			IPCC_SMALL = #{ipcc-select-2},
+			INDI_CONSTRUCT = #{indicator-cont},
+			ITEM_REGDATE = NOW()
+		WHERE
+			USER_ID = #{userName}
+			AND
+			INDI_ID = #{indi_id}
+			
+	</update>
+	
+	<update id="updateIndicatorData" parameterType="map">
+		
+		UPDATE
+			INDICATOR_DATA_USER
+		SET
+			INDI_VAL = #{district_val}::numeric,
+			INDI_YEAR = (SELECT TO_CHAR(NOW(), 'YYYY'))
+		WHERE
+			INDI_ID = #{indi_id}
+			AND
+			DISTRICT_CD = #{district_cd}
+			
+	</update>
+	
+	<delete id="deleteIndicatorList" parameterType="map">
+		
+		DELETE FROM
+			INDICATOR_LIST_USER
+		WHERE
+			INDI_ID = #{indi_id}
+			AND
+			USER_ID = #{userName}
+		
+	</delete>
+	
+	<delete id="deleteIndicatorData" parameterType="map">
+	
+		DELETE FROM
+			INDICATOR_DATA_USER
+		WHERE
+			INDI_ID =
+			(
+			SELECT
+				INDI_ID
+			FROM
+				INDICATOR_LIST_USER
+			WHERE
+				USER_ID = #{userName}
+				AND
+				INDI_ID = #{indi_id}
+			)
+	</delete>
+	
+</mapper>

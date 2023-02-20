@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="adminManagement">
+	
+	<select id="selectAdminList" parameterType="EgovMap" resultType="EgovMap">
+		SELECT 
+		<![CDATA[
+		(NO-1)/#{pageLimit}+1 AS PAGE
+		,NO
+		,USER_ID
+		,USER_NM
+		,USER_DIST
+		,USER_AUTH
+		,USER_ACCESS
+		FROM
+		(
+			SELECT
+			]]>
+				<choose>
+					<when test="category != null and !category.equals('id')">
+						<if test='type != null and (type eq "down".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_NM DESC) AS NO
+						</if>
+						<if test='type != null and (type eq "up".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_NM ASC) AS NO
+						</if>
+					</when>
+					<when test="category != null and !category.equals('name')">
+						<if test='type != null and (type eq "down".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_ID DESC) AS NO
+						</if>
+						<if test='type != null and (type eq "up".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_ID ASC) AS NO
+						</if>
+					</when>
+					<otherwise>
+						ROW_NUMBER() OVER (ORDER BY USER_ID ASC) AS NO
+					</otherwise>
+				</choose>
+				<![CDATA[
+				, USER_ID
+				, USER_NM
+				, (SELECT DISTRICT_NM FROM (
+									SELECT DISTRICT_CD, DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = C.USER_DIST
+									UNION ALL
+									SELECT A.DISTRICT_CD,B.DISTRICT_NM||' '||A.DISTRICT_NM AS DISTRICT_NM 
+									FROM DISTRICT_SGG A JOIN DISTRICT_SD B ON SUBSTR(A.DISTRICT_CD,1,2)=B.DISTRICT_CD WHERE A.DISTRICT_CD = C.USER_DIST)D WHERE D.DISTRICT_CD = C.USER_DIST)
+								AS USER_DIST
+				, CASE USER_AUTH
+					WHEN 'A' THEN '관리자'
+					WHEN 'B' THEN '시군구 사용자'
+					WHEN 'W' THEN '시도 사용자'
+				END AS USER_AUTH
+				,TO_CHAR(USER_ACCESS ,'YYYY-MM-DD HH24:MI:SS') AS USER_ACCESS
+			FROM USER_INFO C
+			WHERE USER_AUTH = 'A'
+			]]>
+			<choose>
+				<when test="category != null and !category.equals('id')">
+					<if test='type != null and (type eq "down".toString())'>
+						ORDER BY USER_NM DESC
+					</if>
+					<if test='type != null and (type eq "up".toString())'>						
+						ORDER BY USER_NM ASC
+					</if>
+				</when>
+				<when test="category != null and !category.equals('name')">
+					<if test='type != null and (type eq "down".toString())'>
+						ORDER BY USER_ID DESC
+					</if>
+					<if test='type != null and (type eq "up".toString())'>
+						ORDER BY USER_ID ASC
+					</if>
+				</when>
+				<otherwise>
+					ORDER BY USER_ID ASC
+				</otherwise>
+			</choose>
+		<![CDATA[
+		) A
+		]]>
+	</select>
+	
+	<select id="selectPageCount" parameterType="EgovMap" resultType="int">
+	/* adminManagement-SQL.xml selectPageCount */
+		SELECT (NO-1)/#{pageLimit}+1 AS PAGE
+		FROM(
+			SELECT 
+				MAX(NO) AS NO
+			FROM(
+				SELECT ROW_NUMBER() OVER (ORDER BY USER_ID ASC) AS NO
+				FROM USER_INFO
+				WHERE USER_AUTH = 'A'
+			)A
+		)B
+	</select>
+	
+	<select id="selectAccessPageCnt" parameterType="EgovMap" resultType="int">
+		SELECT (NO-1)/#{pageLimit}+1 AS PAGE
+		FROM (
+			SELECT
+				MAX(NO) AS NO
+			FROM (
+				SELECT ROW_NUMBER() OVER (ORDER BY LOG_DATE DESC) AS NO 
+				FROM ACCESS_LOG
+				WHERE USER_ID IN (SELECT USER_ID FROM USER_INFO WHERE USER_AUTH = 'A')
+				<choose>
+					<when test="startDate != null and !startDate.equals('null') and endDate != null and !endDate.equals('null')">
+						AND  to_char(LOG_DATE ,'YYYY-MM-DD') BETWEEN #{startDate} AND #{endDate}
+					</when>
+					<otherwise>
+					
+					</otherwise>
+				</choose>
+				<choose>
+					<when test="adminId != null and !adminId.equals('all')">
+						AND  USER_ID = #{adminId}
+					</when>
+					<otherwise>
+					
+					</otherwise>
+				</choose>
+			) A 
+		)B
+	</select>
+	
+	<select id="selectAdminIdCheck" parameterType="EgovMap" resultType="int">
+		<![CDATA[
+			SELECT COUNT(*) FROM USER_INFO WHERE LOWER(USER_ID) = LOWER(#{userId})
+		]]>
+	</select>
+	
+	<insert id="insertAdmin" parameterType="EgovMap">
+		INSERT INTO
+		USER_INFO(USER_ID,USER_NM,USER_PW,USER_AUTH,USER_DIST,USER_ACCESS)
+		VALUES(#{userId},#{userNm},#{userPw},#{userAuth},#{userDist},NOW())
+	</insert>
+	
+	<select id="getAdminInfo" parameterType="EgovMap" resultType="EgovMap">
+		SELECT *
+		FROM USER_INFO
+		WHERE USER_ID = #{data}
+	</select>
+	
+	<select id="selectAdminAccessLogList" parameterType="EgovMap" resultType="EgovMap">
+		SELECT 
+		<![CDATA[
+		(NO-1)/#{pageLimit}+1 AS PAGE
+		,NO
+		,USER_ID
+		,USER_NM
+		,ACCESS_IP
+		,LOG_DATE
+		FROM
+		(
+			SELECT
+			]]>
+				<choose>
+					<when test="category != null and !category.equals('id')">
+						<if test='type != null and (type eq "down".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_NM DESC) AS NO
+						</if>
+						<if test='type != null and (type eq "up".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_NM ASC) AS NO
+						</if>
+					</when>
+					<when test="category != null and !category.equals('name')">
+						<if test='type != null and (type eq "down".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_ID DESC) AS NO
+						</if>
+						<if test='type != null and (type eq "up".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_ID ASC) AS NO
+						</if>
+					</when>
+					<otherwise>
+						ROW_NUMBER() OVER (ORDER BY LOG_DATE DESC) AS NO
+					</otherwise>
+				</choose>
+				<![CDATA[
+				, USER_ID
+				, (SELECT USER_NM FROM USER_INFO WHERE USER_ID = ACCESS_LOG.USER_ID) AS USER_NM
+				, ACCESS_IP
+				, TO_CHAR(LOG_DATE ,'YYYY-MM-DD HH24:MI:SS') AS LOG_DATE
+			FROM ACCESS_LOG 
+			WHERE
+				USER_ID IN (SELECT USER_ID FROM USER_INFO WHERE USER_AUTH = 'A')
+			]]>
+			<choose>
+				<when test="startDate != null and !startDate.equals('null') and endDate != null and !endDate.equals('null')">
+					AND  to_char(LOG_DATE ,'YYYY-MM-DD') BETWEEN #{startDate} AND #{endDate}
+				</when>
+				<otherwise>
+				
+				</otherwise>
+			</choose>
+			<choose>
+				<when test="adminId != null and !adminId.equals('all')">
+					AND  USER_ID = #{adminId}
+				</when>
+				<otherwise>
+				
+				</otherwise>
+			</choose>
+			<choose>
+				<when test="category != null and !category.equals('id')">
+					<if test='type != null and (type eq "down".toString())'>
+						ORDER BY USER_NM DESC
+					</if>
+					<if test='type != null and (type eq "up".toString())'>						
+						ORDER BY USER_NM ASC
+					</if>
+				</when>
+				<when test="category != null and !category.equals('name')">
+					<if test='type != null and (type eq "down".toString())'>
+						ORDER BY USER_ID DESC
+					</if>
+					<if test='type != null and (type eq "up".toString())'>
+						ORDER BY USER_ID ASC
+					</if>
+				</when>
+				<otherwise>
+					
+				</otherwise>
+			</choose>
+		<![CDATA[
+		) A
+		ORDER BY PAGE, NO
+		]]>
+	</select>
+	
+	<delete id="deleteAdmin" parameterType="EgovMap">
+		<![CDATA[
+			DELETE FROM USER_INFO WHERE USER_ID = #{data}
+		]]>
+	</delete>
+	
+	<select id="selectAdminIdList" parameterType="EgovMap" resultType="EgovMap">
+		SELECT USER_ID
+		FROM USER_INFO
+		WHERE USER_AUTH = 'A'
+		ORDER BY USER_ID
+	</select>
+	
+	<insert id="insertRequestLog" parameterType="EgovMap">
+		INSERT INTO REQUEST_LOG
+		(
+		    LOG_DATE,
+		    USER_ID,
+		    REQ_IP,
+		    REQ_SITE,
+		    REQ_URL,
+		    REQ_PARAM,
+		    URL_DEPTH1,
+		    URL_DEPTH2,
+		    URL_DEPTH3,
+		    URL_DEPTH4,
+		    URL_DEPTH5,
+		    REQ_SESSIONID
+		)
+		VALUES
+		(
+		    NOW()
+		    ,#{userId}
+		    ,#{reqIp}
+		    ,#{reqSite}
+		    ,#{reqUrl}
+		    ,#{reqParam}
+		    ,#{urlDepth1}
+		    ,#{urlDepth2}
+		    ,#{urlDepth3}
+		    ,#{urlDepth4}
+		    ,#{urlDepth5}
+		    ,#{reqSessionid}
+		)
+	</insert>
+	
+	<select id="selectAdminRequestLogList" parameterType="EgovMap" resultType="EgovMap">
+		SELECT 
+		<![CDATA[
+		(NO-1)/#{pageLimit}+1 AS PAGE
+		,NO
+		, USER_ID
+		, LOG_DATE
+		, REQ_IP
+		, REQ_URL
+		, REQ_PARAM
+		, CASE 
+			WHEN URL_DEPTH1 = 'member' THEN '사용자 메뉴' 
+			WHEN URL_DEPTH1 = 'admin' THEN '관리자 메뉴' 
+		ELSE '로그인' END AS URL_DEPTH1 
+		, CASE
+			WHEN URL_DEPTH2 = 'inventory' THEN '지자체별 인벤토리'
+			WHEN URL_DEPTH2 = 'climate' THEN (CASE WHEN URL_DEPTH3 = 'estimation' THEN '전국단위 취약성평가' WHEN URL_DEPTH3 = 'cumulative' THEN '전국단위 누적현황보고' ELSE '' END )
+			WHEN URL_DEPTH2 = 'system' THEN '전국 사용자정의 취약성' 
+			WHEN URL_DEPTH2 = 'board' THEN '열린마당 관리'
+			WHEN URL_DEPTH2 = 'stat' THEN '통계보기'
+			WHEN URL_DEPTH2 = 'user' THEN '회원관리'
+			WHEN URL_DEPTH2 = 'admin' THEN '관리자 계정관리'
+			WHEN URL_DEPTH2 = 'management' THEN '데이터관리'
+		ELSE URL_DEPTH2 END AS URL_DEPTH2 
+		, CASE
+			WHEN URL_DEPTH3 = 'management' THEN (CASE WHEN URL_DEPTH2 = 'user' THEN '회원관리' ELSE '관리자 계정관리' END)
+			WHEN URL_DEPTH3 = 'requestlog' THEN '작업이력'
+			WHEN URL_DEPTH3 = 'accesslog' THEN '접속이력'
+			WHEN URL_DEPTH3 = 'estimationlog' THEN '취약성평가 조회 통계' 
+			WHEN URL_DEPTH3 = 'indicator' THEN '평가지표 데이터'
+			WHEN URL_DEPTH3 = 'item' THEN '취약성평가 항목'
+			WHEN URL_DEPTH3 = 'estimation' THEN '취약성평가' 
+			WHEN URL_DEPTH3 = 'cumulative' THEN '누적현황보고' 
+			WHEN URL_DEPTH3 = 'notice' THEN '공지사항' 
+			WHEN URL_DEPTH3 = 'faq' THEN 'FAQ' 
+			WHEN URL_DEPTH3 = 'suggestion' THEN '건의사항' 
+			WHEN URL_DEPTH3 = 'reference' THEN '자료실'
+			WHEN URL_DEPTH3 = 'data' THEN '지표'
+			WHEN URL_DEPTH3 = 'meta' THEN '원시자료' 
+		ELSE URL_DEPTH3 END AS URL_DEPTH3 
+		, CASE
+			WHEN URL_DEPTH4 = 'pwChange' THEN '수정' 
+			WHEN URL_DEPTH4 = 'enroll' THEN '생성' 
+			WHEN URL_DEPTH4 = 'deleteAdmin' THEN '삭제' 
+			WHEN URL_DEPTH4 = 'insert' THEN '생성' 
+			WHEN URL_DEPTH4 = 'update' THEN '수정' 
+			WHEN URL_DEPTH4 = 'modify' THEN '수정'
+			WHEN URL_DEPTH4 = 'delete' THEN '삭제' 
+		ELSE '조회' END AS URL_DEPTH4
+		, URL_DEPTH5
+		FROM
+		(
+			SELECT
+			]]>
+				<choose>
+					<when test="category != null and !category.equals('id')">
+						<if test='type != null and (type eq "down".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_NM DESC) AS NO
+						</if>
+						<if test='type != null and (type eq "up".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_NM ASC) AS NO
+						</if>
+					</when>
+					<when test="category != null and !category.equals('name')">
+						<if test='type != null and (type eq "down".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_ID DESC) AS NO
+						</if>
+						<if test='type != null and (type eq "up".toString())'>
+							ROW_NUMBER() OVER (ORDER BY USER_ID ASC) AS NO
+						</if>
+					</when>
+					<otherwise>
+						ROW_NUMBER() OVER (ORDER BY LOG_DATE DESC) AS NO
+					</otherwise>
+				</choose>
+				<![CDATA[
+				, USER_ID
+				, TO_CHAR(LOG_DATE, 'YYYY-MM-DD HH24:MI:SS') AS LOG_DATE
+				, REQ_IP
+				, REQ_URL
+				, REQ_PARAM
+				, URL_DEPTH1
+				, URL_DEPTH2 
+				, URL_DEPTH3
+				, URL_DEPTH4
+				, URL_DEPTH5
+			FROM REQUEST_LOG 
+			]]>
+			WHERE URL_DEPTH1 = 'admin'
+			<!-- <choose>
+				<when test="adminId != null">
+					WHERE
+					1=1
+				</when>
+				<otherwise>
+				
+				</otherwise>
+			</choose> -->
+			<choose>
+				<when test="startDate != null and !startDate.equals('null') and endDate != null and !endDate.equals('null')">
+					AND  to_char(LOG_DATE ,'YYYY-MM-DD') BETWEEN #{startDate} AND #{endDate}
+				</when>
+				<otherwise>
+				
+				</otherwise>
+			</choose>
+			<choose>
+				<when test="adminId != null and !adminId.equals('all')">
+					AND  USER_ID = #{adminId}
+				</when>
+				<otherwise>
+				
+				</otherwise>
+			</choose>
+			<choose>
+				<when test="category != null and !category.equals('id')">
+					<if test='type != null and (type eq "down".toString())'>
+						ORDER BY USER_NM DESC
+					</if>
+					<if test='type != null and (type eq "up".toString())'>						
+						ORDER BY USER_NM ASC
+					</if>
+				</when>
+				<when test="category != null and !category.equals('name')">
+					<if test='type != null and (type eq "down".toString())'>
+						ORDER BY USER_ID DESC
+					</if>
+					<if test='type != null and (type eq "up".toString())'>
+						ORDER BY USER_ID ASC
+					</if>
+				</when>
+				<otherwise>
+					
+				</otherwise>
+			</choose>
+		<![CDATA[
+		) A
+		ORDER BY PAGE, NO
+		]]>
+	</select>
+	
+	<select id="selectReqestLogCnt" parameterType="EgovMap" resultType="int">
+		SELECT (NO-1)/#{pageLimit}+1 AS PAGE
+		FROM (
+			SELECT
+				MAX(NO) AS NO
+			FROM (
+				SELECT ROW_NUMBER() OVER (ORDER BY LOG_DATE DESC) AS NO 
+				FROM REQUEST_LOG
+				WHERE URL_DEPTH1 = 'admin'
+				<!-- <choose>
+					<when test="adminId != null">
+						WHERE
+						1=1
+					</when>
+					<otherwise>
+					
+					</otherwise>
+				</choose> -->
+				<choose>
+					<when test="startDate != null and !startDate.equals('null') and endDate != null and !endDate.equals('null')">
+						AND  to_char(LOG_DATE ,'YYYY-MM-DD') BETWEEN #{startDate} AND #{endDate}
+					</when>
+					<otherwise>
+					
+					</otherwise>
+				</choose>
+				<choose>
+					<when test="adminId != null and !adminId.equals('all')">
+						AND  USER_ID = #{adminId}
+					</when>
+					<otherwise>
+					
+					</otherwise>
+				</choose>
+			) A 
+		)B
+	</select>
+	
+	<select id="selectRefcode" resultType="EgovMap">
+		SELECT CODE_ID, CODE_NM
+		FROM REF_CODE
+		ORDER BY CODE_ID
+	</select>
+	
+	<select id="getNoticeIdxNm" parameterType="EgovMap" resultType="EgovMap">
+		SELECT
+			BBS_TITLE
+		FROM
+			BOARD_NOTICE
+		WHERE
+			BBS_IDX = #{idx}
+	</select>
+	
+	<select id="getFaqIdxNm" parameterType="EgovMap" resultType="EgovMap">
+		SELECT 
+			BBS_TITLE
+		FROM 
+			BOARD_FAQ
+		WHERE
+			BBS_IDX = #{idx}
+	</select>
+	
+	<select id="getSuggestionIdxNm" parameterType="EgovMap" resultType="EgovMap">
+		SELECT 
+			BBS_TITLE
+		FROM 
+			BOARD_SUGGESTION
+		WHERE
+			BBS_IDX = #{idx}
+	</select>
+	
+	<select id="getReferenceIdxNm" parameterType="EgovMap" resultType="EgovMap">
+		SELECT 
+			BBS_TITLE
+		FROM 
+			BOARD_REFERENCE
+		WHERE
+			BBS_IDX = #{idx}
+	</select>
+</mapper>

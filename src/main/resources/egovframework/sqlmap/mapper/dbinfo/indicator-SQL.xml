@@ -1,0 +1,1098 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dbinfoIndicator">
+	
+	<select id="getIndicatorGroup" resultType="hashMap">
+		
+		SELECT
+			CODE_ID,
+			CODE_NM
+		FROM
+			REF_CODE
+		WHERE
+			CODE_GROUP = 'INDICATOR_GROUP'
+			OR
+			CODE_GROUP = 'SCENARIO_GROUP'
+		
+	</select>
+	
+	<select id="getIndicatorList" parameterType="map" resultType="hashMap">
+		WITH INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT
+					INDI_ID,
+					INDI_NM,
+					INDI_UNIT,
+					INDI_ACCOUNT,
+					IPCC_LARGE,
+					IPCC_SMALL,
+					INDI_CONSTRUCT,
+					INDI_GROUP
+				FROM
+					INDICATOR_LIST
+				UNION
+				
+				SELECT
+					SCEN_ID AS INDI_ID,
+					SCEN_NM AS INDI_NM,
+					SCEN_UNIT AS INDI_UNIT,
+					SCEN_ACCOUNT AS INDI_ACCOUNT,
+					IPCC_LARGE,
+					IPCC_SMALL,
+					SCEN_CONSTRUCT AS INDI_CONSTRUCT,
+					SCEN_GROUP AS INDI_GROUP
+				FROM
+					SCENARIO_LIST
+				) A
+		),
+		
+		INDI_FIELD_SET AS(
+			SELECT
+				*
+			FROM
+				INDI_LIST_SET
+			<if test="field_id != 'all'">
+			WHERE
+				INDI_ID IN
+				(
+				SELECT
+					DISTINCT A.INDI_ID
+				FROM
+					ITEM_INDICATOR A
+				INNER JOIN
+					(
+					SELECT
+						*
+					FROM
+						ITEM_LIST
+					WHERE
+						<if test="field_id != 'all'">
+						FIELD_ID = #{field_id}
+							<!-- FIELD ID 를 선택 했을 경우에만 항목 검색이 가능 -->
+							<if test="item_id != 'all'">
+							AND ITEM_ID = #{item_id}
+							</if>
+						</if>
+						
+					) B
+				ON
+					A.ITEM_ID = B.ITEM_ID
+				)
+			</if>
+		)
+		SELECT
+			*,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = B.INDI_GROUP) AS INDI_GROUP_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = B.IPCC_LARGE) AS IPCC_LARGE_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = B.IPCC_SMALL) AS IPCC_SMALL_NM
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY INDI_ID DESC) AS RNUM,
+				*
+			FROM
+				(
+				SELECT
+					*
+				FROM
+					INDI_FIELD_SET
+				WHERE
+					1 = 1
+				<if test="indi_group != 'all'">
+					<if test="indi_group == 'SG001'">
+						AND INDI_GROUP IN (#{indi_group} , 'IG003')
+					</if>
+					<if test="indi_group != 'SG001'">
+						AND INDI_GROUP = #{indi_group}
+					</if>
+				</if>
+				<if test="ipcc_1 != 'all'">
+				AND IPCC_LARGE = #{ipcc_1}
+					<!-- IPCC 1을 선택 했을 때만 IPCC 2 선택 가능 -->
+					<if test="ipcc_2 != 'all'">
+					AND IPCC_SMALL = #{ipcc_2}
+					</if>
+				</if>
+				) A
+			<if test="keywordList != null">
+			WHERE
+				<foreach collection="keywordList" item="item" separator="OR">
+					LOWER(INDI_NM) LIKE '%' || LOWER(#{item}) || '%'
+				</foreach>
+			</if>
+			LIMIT #{endRow}
+			) B
+		OFFSET #{startRow}
+		
+	</select>
+	
+	
+	
+	<select id="getIndicatorListTotCnt" parameterType="map" resultType="int">
+		WITH INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT
+					INDI_ID,
+					INDI_NM,
+					INDI_UNIT,
+					INDI_ACCOUNT,
+					IPCC_LARGE,
+					IPCC_SMALL,
+					INDI_CONSTRUCT,
+					INDI_GROUP
+				FROM
+					INDICATOR_LIST
+				UNION
+				
+				SELECT
+					SCEN_ID AS INDI_ID,
+					SCEN_NM AS INDI_NM,
+					SCEN_UNIT AS INDI_UNIT,
+					SCEN_ACCOUNT AS INDI_ACCOUNT,
+					IPCC_LARGE,
+					IPCC_SMALL,
+					SCEN_CONSTRUCT AS INDI_CONSTRUCT,
+					SCEN_GROUP AS INDI_GROUP
+				FROM
+					SCENARIO_LIST
+				) A
+		),
+		
+		INDI_FIELD_SET AS(
+			SELECT
+				*
+			FROM
+				INDI_LIST_SET
+			<if test="field_id != 'all'">
+			WHERE
+				INDI_ID IN
+				(
+				SELECT
+					DISTINCT A.INDI_ID
+				FROM
+					ITEM_INDICATOR A
+				INNER JOIN
+					(
+					SELECT
+						*
+					FROM
+						ITEM_LIST
+					WHERE
+						<if test="field_id != 'all'">
+						FIELD_ID = #{field_id}
+							<!-- FIELD ID 를 선택 했을 경우에만 항목 검색이 가능 -->
+							<if test="item_id != 'all'">
+							AND ITEM_ID = #{item_id}
+							</if>
+						</if>
+						
+					) B
+				ON
+					A.ITEM_ID = B.ITEM_ID
+				)
+			</if>
+		)
+		SELECT
+			COUNT(*)
+		FROM
+			(
+			SELECT
+				*
+			FROM
+				INDI_FIELD_SET
+			WHERE
+				1 = 1
+			<if test="indi_group != 'all'">
+				<if test="indi_group != 'all'">
+					<if test="indi_group == 'SG001'">
+						AND INDI_GROUP IN (#{indi_group} , 'IG003')
+					</if>
+					<if test="indi_group != 'SG001'">
+						AND INDI_GROUP = #{indi_group}
+					</if>
+				</if>
+			</if>
+			<if test="ipcc_1 != 'all'">
+			AND IPCC_LARGE = #{ipcc_1}
+				<!-- IPCC 1을 선택 했을 때만 IPCC 2 선택 가능 -->
+				<if test="ipcc_2 != 'all'">
+				AND IPCC_SMALL = #{ipcc_2}
+				</if>
+			</if>
+			) A
+		<if test="keywordList != null">
+		WHERE
+			<foreach collection="keywordList" item="item" separator="OR">
+				LOWER(INDI_NM) LIKE '%' || LOWER(#{item}) || '%'
+			</foreach>
+		</if>
+		
+	</select>
+	
+	<select id="getIndicatorListInfo" parameterType="map" resultType="hashMap">
+		SELECT
+			*,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = A.IPCC_LARGE) AS IPCC_LARGE_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = A.IPCC_SMALL) AS IPCC_SMALL_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = A.INDI_CONSTRUCT) AS INDI_CONSTRUCT_NM,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = A.INDI_GROUP) AS INDI_GROUP_NM
+		FROM
+		<choose>
+			<when test="header == 'IC'">
+			INDICATOR_LIST A
+			</when>
+			<when test="header == 'SC'">
+			(
+			SELECT
+				SCEN_ID AS INDI_ID,
+				SCEN_NM AS INDI_NM,
+				SCEN_UNIT AS INDI_UNIT,
+				SCEN_ACCOUNT AS INDI_ACCOUNT,
+				IPCC_LARGE,
+				IPCC_SMALL,
+				SCEN_CONSTRUCT AS INDI_CONSTRUCT,
+				SCEN_GROUP AS INDI_GROUP,
+				SCEN_CONSTRUCT_METH AS INDI_CONSTRUCT_METH
+			FROM
+				SCENARIO_LIST
+			) A
+			</when>
+		</choose>
+		WHERE
+			INDI_ID = #{indi_id}
+	</select>
+	
+	<select id="getIndicatorDataInfo" parameterType="map" resultType="hashMap">
+		
+		
+		WITH TABLE_DATA_SET AS(
+			SELECT
+				*
+			FROM
+				<choose>
+					<when test="header eq 'IC'.toString()">
+					(
+					SELECT
+						A.*,
+						B.INDI_SPACE
+					FROM
+						INDICATOR_DATA A
+					INNER JOIN
+						INDICATOR_LIST B
+					ON
+						A.INDI_ID = B.INDI_ID
+					) C
+					</when>
+					<when test="header eq 'SC'.toString()">
+					(
+					SELECT
+						SCEN_ID AS INDI_ID,
+						DISTRICT_CD,
+						SCEN_VAL AS INDI_VAL,
+						SCEN_YEAR,
+						SCEN_SECTION,
+						MDL_ID,
+						VALUE_YEAR AS INDI_YEAR,
+						(SELECT SCEN_CONSTRUCT FROM SCENARIO_LIST WHERE SCEN_ID = A.SCEN_ID) AS SCEN_CONST
+					FROM
+						SCENARIO_DATA A
+					WHERE
+						SCEN_YEAR = #{year_id}
+						AND
+						SCEN_SECTION = #{rcp_id}
+						AND
+						MDL_ID = #{mdl_id}
+					) A
+					</when>
+				</choose>
+			WHERE
+				INDI_ID = #{indi_id}
+				<choose>
+					<when test="header eq 'IC'.toString()">
+						<choose>
+							<when test="space_info eq 'SPA01'.toString()">
+							AND DISTRICT_CD LIKE #{district_info} || '%'
+							</when>
+							<when test="space_info eq 'SPA02'.toString()">
+							AND DISTRICT_CD LIKE #{district_info} || '%'
+							</when>
+							<when test="space_info eq 'SPA03'.toString()">
+							AND DISTRICT_CD LIKE SUBSTR(#{district_info}, 1, 2) || '%'
+							</when>
+						</choose>
+					</when>
+					<otherwise>
+					AND DISTRICT_CD LIKE #{district_info} || '%'
+					</otherwise>
+				</choose>
+				AND INDI_VAL IS NOT NULL
+		),
+		
+		INDI_DATA_SET AS(
+			SELECT
+				DISTRICT_CD,
+				INDI_VAL,
+				INDI_YEAR
+			FROM
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				
+					<choose>
+						<when test="header eq 'IC'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						FROM
+							(
+							SELECT
+								CASE A.INDI_SPACE
+									WHEN 'SPA01' THEN A.DISTRICT_CD
+									WHEN 'SPA02' THEN B.DISTRICT_CD
+									WHEN 'SPA03' THEN B.DISTRICT_CD
+								END AS DISTRICT_CD,
+								A.INDI_VAL,
+								A.INDI_YEAR,
+								A.INDI_SPACE
+							FROM
+								TABLE_DATA_SET A,
+								(SELECT * FROM DISTRICT_EMD WHERE DISTRICT_CD LIKE #{district_info} || '%') B
+							) C
+						GROUP BY
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						) D
+						</when>
+						<otherwise>
+							<choose>
+								<when test='indi_id eq "SC002048" or indi_id eq "SC002050"'>
+									(
+									SELECT
+										DISTRICT_CD,
+										INDI_VAL,
+										INDI_YEAR
+									FROM
+										(
+										SELECT
+											B.DISTRICT_CD,
+											A.INDI_VAL,
+											A.INDI_YEAR
+										FROM
+											TABLE_DATA_SET A,
+											(SELECT * FROM DISTRICT_EMD WHERE DISTRICT_CD LIKE #{district_info} || '%') B
+										) C
+									GROUP BY
+										DISTRICT_CD,
+										INDI_VAL,
+										INDI_YEAR
+									) D
+								</when>
+								<otherwise>
+									TABLE_DATA_SET
+								</otherwise>
+							</choose>
+						
+						<!-- TABLE_DATA_SET -->
+						</otherwise>
+					</choose>
+				
+				</when>
+				<otherwise>
+				
+					<choose>
+						<when test="header eq 'IC'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						FROM
+							(
+							SELECT
+								CASE A.INDI_SPACE
+									WHEN 'SPA01' THEN A.DISTRICT_CD
+									WHEN 'SPA02' THEN A.DISTRICT_CD
+									WHEN 'SPA03' THEN B.DISTRICT_CD
+								END AS DISTRICT_CD,
+								A.INDI_VAL,
+								A.INDI_YEAR,
+								A.INDI_SPACE
+							FROM
+								TABLE_DATA_SET A,
+								(SELECT * FROM DISTRICT_SGG WHERE DISTRICT_CD LIKE #{district_info} || '%') B
+							) C
+						GROUP BY
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						) A
+						</when>
+						<when test="header eq 'SC'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_YEAR, 
+							CASE SCEN_CONST 
+							WHEN 'VT001' THEN TRUNC(AVG(INDI_VAL),2)
+							WHEN 'VT002' THEN SUM(INDI_VAL)
+							WHEN 'VT007' THEN TRUNC(AVG(INDI_VAL),2)
+							END AS INDI_VAL 
+						FROM
+							(
+							SELECT
+								SUBSTR(DISTRICT_CD, 1, 4)||'0' AS DISTRICT_CD,
+								INDI_VAL,
+								INDI_YEAR,
+								 SCEN_CONST
+							FROM
+								TABLE_DATA_SET
+							) B
+							
+						GROUP BY
+							DISTRICT_CD, INDI_YEAR,SCEN_CONST
+						) A
+						</when>
+					</choose>
+				</otherwise>
+			</choose>
+		),
+		
+		INDI_VAL_SET AS(
+			SELECT
+				DISTRICT_CD,
+				CASE
+					<choose>
+						<when test="header eq 'IC'.toString()">
+							WHEN INDI_VAL IS NULL 
+								THEN CASE
+									WHEN (SELECT COUNT(DISTINCT(INDI_YEAR)) FROM INDI_DATA_SET WHERE INDI_VAL IS NULL)> '1'
+									THEN INDI_VAL
+									ELSE (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+								END
+							ELSE INDI_VAL 
+							END AS INDI_VAL, 
+						</when>
+						<when test="header eq 'SC'.toString()">
+								WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+								ELSE INDI_VAL
+							END AS INDI_VAL,
+						</when>
+					</choose>
+					<!-- WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+					ELSE INDI_VAL
+				END AS INDI_VAL, -->
+				CASE
+					WHEN INDI_YEAR IS NULL THEN (SELECT INDI_YEAR FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+					ELSE INDI_YEAR
+				END AS INDI_YEAR
+			FROM
+				(
+				SELECT
+					DISTRICT_CD,
+					CASE
+						<choose>
+							<when test="header eq 'IC'.toString()">
+								WHEN INDI_VAL IS NULL
+									THEN CASE
+										WHEN (SELECT COUNT(DISTINCT(INDI_YEAR)) FROM INDI_DATA_SET WHERE INDI_VAL IS NULL)> '1'
+										THEN INDI_VAL
+										ELSE (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+										END
+									ELSE INDI_VAL 
+								END AS INDI_VAL, 
+							</when>
+							<when test="header eq 'SC'.toString()">
+									WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = #{district_info} AND INDI_ID = #{indi_id})
+									ELSE INDI_VAL
+								END AS INDI_VAL,
+							</when>
+						</choose>
+						<!-- WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = #{district_info} AND INDI_ID = #{indi_id})
+						ELSE INDI_VAL
+					END AS INDI_VAL, -->
+					CASE
+						WHEN INDI_YEAR IS NULL THEN (SELECT INDI_YEAR FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+						ELSE INDI_YEAR
+					END AS INDI_YEAR
+				FROM
+					INDI_DATA_SET A
+				) B
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				</when>
+				<otherwise>
+					WHERE SUBSTR(DISTRICT_CD,5,6) = '0'
+				</otherwise>
+			</choose>
+			
+		),
+		
+		
+		INDI_RESULT_SET AS(
+			SELECT
+				*,
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				(SELECT DISTRICT_NM FROM DISTRICT_EMD WHERE DISTRICT_CD = A.DISTRICT_CD) AS DISTRICT_NM
+				</when>
+				<otherwise>
+				(SELECT DISTRICT_NM FROM DISTRICT_SGG WHERE DISTRICT_CD = A.DISTRICT_CD) AS DISTRICT_NM
+				</otherwise>
+			</choose>
+			FROM
+				INDI_VAL_SET A
+			WHERE
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				LENGTH(DISTRICT_CD) = 7
+				</when>
+				<otherwise>
+				LENGTH(DISTRICT_CD) = 5
+				</otherwise>
+			</choose>
+		)
+		<choose>
+			<when test="download == null">
+				SELECT
+					*
+				FROM
+					(
+					SELECT
+						ROW_NUMBER() OVER(ORDER BY DISTRICT_CD ASC, INDI_YEAR DESC) AS RNUM,
+						*
+					FROM
+						INDI_RESULT_SET
+					LIMIT #{endRow}
+					) A
+				OFFSET #{startRow}
+			</when>
+			<otherwise>
+				SELECT
+					ROW_NUMBER() OVER(ORDER BY DISTRICT_CD ASC, INDI_YEAR DESC) AS RNUM,
+					*
+				FROM
+					INDI_RESULT_SET
+			</otherwise>
+		</choose>
+		
+	</select>
+	
+	
+	
+	
+	<select id="getIndicatorDataInfoTotCnt" parameterType="map" resultType="int">
+		
+		
+		WITH TABLE_DATA_SET AS(
+			SELECT
+				*
+			FROM
+				<choose>
+					<when test="header eq 'IC'.toString()">
+					(
+					SELECT
+						A.*,
+						B.INDI_SPACE
+					FROM
+						INDICATOR_DATA A
+					INNER JOIN
+						INDICATOR_LIST B
+					ON
+						A.INDI_ID = B.INDI_ID
+					) C
+					</when>
+					<when test="header eq 'SC'.toString()">
+					(
+					SELECT
+						SCEN_ID AS INDI_ID,
+						DISTRICT_CD,
+						SCEN_VAL AS INDI_VAL,
+						SCEN_YEAR,
+						SCEN_SECTION,
+						MDL_ID,
+						VALUE_YEAR AS INDI_YEAR
+					FROM
+						SCENARIO_DATA
+					WHERE
+						SCEN_YEAR = #{year_id}
+						AND
+						SCEN_SECTION = #{rcp_id}
+						AND
+						MDL_ID = #{mdl_id}
+					) A
+					</when>
+				</choose>
+			WHERE
+				INDI_ID = #{indi_id}
+				<choose>
+					<when test="header eq 'IC'.toString()">
+						<choose>
+							<when test="space_info eq 'SPA01'.toString()">
+							AND DISTRICT_CD LIKE #{district_info} || '%'
+							</when>
+							<when test="space_info eq 'SPA02'.toString()">
+							AND DISTRICT_CD LIKE #{district_info} || '%'
+							</when>
+							<when test="space_info eq 'SPA03'.toString()">
+							AND DISTRICT_CD LIKE SUBSTR(#{district_info}, 1, 2) || '%'
+							</when>
+						</choose>
+					</when>
+					<otherwise>
+					AND DISTRICT_CD LIKE #{district_info} || '%'
+					</otherwise>
+				</choose>
+				AND INDI_VAL IS NOT NULL
+		),
+		
+		INDI_DATA_SET AS(
+			SELECT
+				DISTRICT_CD,
+				INDI_VAL,
+				INDI_YEAR
+			FROM
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				
+					<choose>
+						<when test="header eq 'IC'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						FROM
+							(
+							SELECT
+								CASE A.INDI_SPACE
+									WHEN 'SPA01' THEN A.DISTRICT_CD
+									WHEN 'SPA02' THEN B.DISTRICT_CD
+									WHEN 'SPA03' THEN B.DISTRICT_CD
+								END AS DISTRICT_CD,
+								A.INDI_VAL,
+								A.INDI_YEAR,
+								A.INDI_SPACE
+							FROM
+								TABLE_DATA_SET A,
+								(SELECT * FROM DISTRICT_EMD WHERE DISTRICT_CD LIKE #{district_info} || '%') B
+							) C
+						GROUP BY
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						) D
+						</when>
+						<otherwise>
+						TABLE_DATA_SET
+						</otherwise>
+					</choose>
+				
+				</when>
+				<otherwise>
+				
+					<choose>
+						<when test="header eq 'IC'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						FROM
+							(
+							SELECT
+								CASE A.INDI_SPACE
+									WHEN 'SPA01' THEN A.DISTRICT_CD
+									WHEN 'SPA02' THEN A.DISTRICT_CD
+									WHEN 'SPA03' THEN B.DISTRICT_CD
+								END AS DISTRICT_CD,
+								A.INDI_VAL,
+								A.INDI_YEAR,
+								A.INDI_SPACE
+							FROM
+								TABLE_DATA_SET A,
+								(SELECT * FROM DISTRICT_SGG WHERE DISTRICT_CD LIKE #{district_info} || '%') B
+							) C
+						GROUP BY
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						) A
+						</when>
+						<when test="header eq 'SC'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_YEAR,
+							SUM(INDI_VAL) AS INDI_VAL
+						FROM
+							(
+							SELECT
+								SUBSTR(DISTRICT_CD, 1, 4)||'0' AS DISTRICT_CD,
+								INDI_VAL,
+								INDI_YEAR
+							FROM
+								TABLE_DATA_SET
+							) B
+							
+						GROUP BY
+							DISTRICT_CD, INDI_YEAR
+						) A
+						</when>
+					</choose>
+				</otherwise>
+			</choose>
+		),
+		
+		INDI_VAL_SET AS(
+			SELECT
+				DISTRICT_CD,
+				CASE
+					<choose>
+						<when test="header eq 'IC'.toString()">
+							WHEN INDI_VAL IS NULL
+								THEN CASE 
+									WHEN (SELECT COUNT(DISTINCT(INDI_YEAR)) FROM INDI_DATA_SET WHERE INDI_VAL IS NULL)> '1'
+									THEN INDI_VAL
+									ELSE (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+									END 
+							ELSE INDI_VAL 
+							END AS INDI_VAL, 
+						</when>
+						<when test="header eq 'SC'.toString()">
+							WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+							ELSE INDI_VAL
+							END AS INDI_VAL,
+						</when>
+					</choose>
+					<!-- WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+					ELSE INDI_VAL
+					END AS INDI_VAL, -->
+				CASE
+					WHEN INDI_YEAR IS NULL THEN (SELECT INDI_YEAR FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+					ELSE INDI_YEAR
+				END AS INDI_YEAR
+			FROM
+				(
+				SELECT
+					DISTRICT_CD,
+					CASE
+						<choose>
+							<when test="header eq 'IC'.toString()">
+								WHEN INDI_VAL IS NULL 
+									THEN CASE
+										WHEN (SELECT COUNT(DISTINCT(INDI_YEAR)) FROM INDI_DATA_SET WHERE INDI_VAL IS NULL)> '1'
+										THEN INDI_VAL
+										ELSE (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+										END 
+								ELSE INDI_VAL 
+								END AS INDI_VAL, 
+							</when>
+							<when test="header eq 'SC'.toString()">
+									WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = #{district_info} AND INDI_ID = #{indi_id})
+									ELSE INDI_VAL
+								END AS INDI_VAL,
+							</when>
+						</choose>
+						<!-- WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = #{district_info} AND INDI_ID = #{indi_id})
+						ELSE INDI_VAL
+					END AS INDI_VAL, -->
+					CASE
+						WHEN INDI_YEAR IS NULL THEN (SELECT INDI_YEAR FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+						ELSE INDI_YEAR
+					END AS INDI_YEAR
+				FROM
+					INDI_DATA_SET A
+				) B
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				</when>
+				<otherwise>
+					WHERE SUBSTR(DISTRICT_CD,5,6) = '0'
+				</otherwise>
+			</choose>
+		),
+		
+		INDI_RESULT_SET AS(
+			SELECT
+				*,
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				(SELECT DISTRICT_NM FROM DISTRICT_EMD WHERE DISTRICT_CD = A.DISTRICT_CD) AS DISTRICT_NM
+				</when>
+				<otherwise>
+				(SELECT DISTRICT_NM FROM DISTRICT_SGG WHERE DISTRICT_CD = A.DISTRICT_CD) AS DISTRICT_NM
+				</otherwise>
+			</choose>
+			FROM
+				INDI_VAL_SET A
+			WHERE
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				LENGTH(DISTRICT_CD) = 7
+				</when>
+				<otherwise>
+				LENGTH(DISTRICT_CD) = 5
+				</otherwise>
+			</choose>
+		)
+		SELECT
+			COUNT(*)
+		FROM
+			INDI_RESULT_SET
+		
+	</select>
+	
+	<select id="getDistrictSd" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			DISTRICT_SD
+	</select>
+	
+	<select id="getDistrictSgg" parameterType="map" resultType="hashMap">
+		SELECT
+			SUBSTR(DISTRICT_CD, 0, 5) AS DISTRICT_CD , DISTRICT_NM
+		FROM
+			DISTRICT_SGG
+		WHERE
+			DISTRICT_CD LIKE #{param} || '%'
+	</select>
+	
+	<select id="getIndicatorItem" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_ID) AS RNUM,
+				*
+			FROM
+				(
+				SELECT
+					A.*
+				FROM
+					ITEM_LIST A
+				INNER JOIN
+					(
+					SELECT
+						DISTINCT ITEM_ID
+					FROM
+						ITEM_INDICATOR
+					WHERE
+						INDI_ID = #{indi_id}
+					) B
+				ON
+					A.ITEM_ID = B.ITEM_ID
+				) C
+			LIMIT #{endRow}
+			) D
+		OFFSET #{startRow}
+		
+	</select>
+	
+	<select id="getIndicatorItemTotCnt" parameterType="map" resultType="int">
+		
+		SELECT
+			COUNT(*)
+		FROM
+			ITEM_LIST A
+		INNER JOIN
+			(
+			SELECT
+				DISTINCT ITEM_ID
+			FROM
+				ITEM_INDICATOR
+			WHERE
+				INDI_ID = #{indi_id}
+			) B
+		ON
+			A.ITEM_ID = B.ITEM_ID
+		
+	</select>
+	
+	<select id="getMetaInfoList" parameterType="String" resultType="hashMap">
+		SELECT
+			A.*
+		FROM
+			REF_META A
+		INNER JOIN
+			(
+			SELECT
+				META_ID
+			FROM
+				INDICATOR_META
+			WHERE
+				INDI_ID = #{indi_id}
+			) B
+		ON
+			A.META_ID = B.META_ID
+		ORDER BY
+			META_ID
+	</select>
+	
+	<select id="getDistrictSdInfo" parameterType="String" resultType="hashMap">
+		SELECT * FROM DISTRICT_SD WHERE DISTRICT_CD = #{_parameter}
+	</select>
+	
+	<select id="getDistrictSggInfo" parameterType="String" resultType="hashMap">
+		SELECT * FROM DISTRICT_SGG WHERE DISTRICT_CD = #{_parameter}||'0'
+	</select>
+	
+	<select id="getDistrictEmdInfo" parameterType="String" resultType="hashMap">
+		SELECT * FROM DISTRICT_Emd WHERE DISTRICT_CD = #{_parameter}
+	</select>
+	
+	<select id="getIndicatorSki" parameterType="String" resultType="String">
+		SELECT
+			SUBSTR(DISTRICT_CD, 1, 2)
+		FROM
+			(
+			SELECT
+				A.*,
+				B.INDI_SPACE
+			FROM
+				INDICATOR_DATA A
+			INNER JOIN
+				INDICATOR_LIST B
+			ON
+				A.INDI_ID = B.INDI_ID
+			) C
+		WHERE
+			INDI_ID = #{_parameter}
+		ORDER BY DISTRICT_CD
+		LIMIT 1
+	</select>
+	
+	<select id="getScenarioSki" parameterType="String" resultType="String">
+		SELECT
+			SUBSTR(DISTRICT_CD, 1, 2)
+		FROM
+			(
+			SELECT
+				A.*
+			FROM
+				SCENARIO_DATA A
+			INNER JOIN
+				SCENARIO_LIST B
+			ON
+				A.SCEN_ID = B.SCEN_ID
+			) C
+		WHERE
+			SCEN_ID = #{_parameter}
+		ORDER BY DISTRICT_CD
+		LIMIT 1
+	</select>
+	
+	
+	<select id="getIndicatorSkiDistrictSd" parameterType="String" resultType="hashMap">
+		SELECT
+			DISTINCT SUBSTRING(DISTRICT_CD, 1, 2) AS DISTRICT_CD,
+			(SELECT DISTRICT_NM FROM DISTRICT_SD A WHERE A.DISTRICT_CD = SUBSTRING(C.DISTRICT_CD, 1, 2)) AS DISTRICT_NM
+		FROM
+			(
+			SELECT
+				A.*,
+				B.INDI_SPACE
+			FROM
+				INDICATOR_DATA A
+			INNER JOIN
+				INDICATOR_LIST B
+			ON
+				A.INDI_ID = B.INDI_ID
+			) C
+		WHERE
+			INDI_ID = #{_parameter}
+		ORDER BY DISTRICT_CD
+	</select>
+	
+	<select id="getScenarioSkiDistrictSd" parameterType="String" resultType="hashMap">
+		SELECT
+			DISTINCT SUBSTRING(DISTRICT_CD, 1, 2) AS DISTRICT_CD,
+			(SELECT DISTRICT_NM FROM DISTRICT_SD A WHERE A.DISTRICT_CD = SUBSTRING(C.DISTRICT_CD, 1, 2)) AS DISTRICT_NM
+		FROM
+			(
+			SELECT
+				A.*
+			FROM
+				SCENARIO_DATA A
+			INNER JOIN
+				SCENARIO_LIST B
+			ON
+				A.SCEN_ID = B.SCEN_ID
+			) C
+		WHERE
+			SCEN_ID = #{_parameter}
+		ORDER BY DISTRICT_CD
+	</select>
+	
+	<select id="getIndicatorSkiDistrictSgg" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				DISTINCT SUBSTRING(DISTRICT_CD, 1, 4) AS DISTRICT_CD,
+				(SELECT DISTRICT_NM FROM DISTRICT_SGG A WHERE SUBSTRING(A.DISTRICT_CD,1,4) = SUBSTRING(C.DISTRICT_CD, 1, 4)) AS DISTRICT_NM
+			FROM
+				(
+				SELECT
+					A.*,
+					B.INDI_SPACE
+				FROM
+					INDICATOR_DATA A
+				INNER JOIN
+					INDICATOR_LIST B
+				ON
+					A.INDI_ID = B.INDI_ID
+				) C
+			WHERE
+				INDI_ID = #{indi_id}
+			) B
+		WHERE
+			DISTRICT_CD LIKE SUBSTR(#{district_info}, 1, 2) || '%'
+		ORDER BY DISTRICT_CD
+	</select>
+	
+	<select id="getScenarioSkiDistrictSgg" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				DISTINCT SUBSTRING(DISTRICT_CD, 1, 5) AS DISTRICT_CD,
+				(SELECT DISTRICT_NM FROM DISTRICT_SGG A WHERE A.DISTRICT_CD = SUBSTRING(C.DISTRICT_CD, 1, 5)) AS DISTRICT_NM
+			FROM
+				(
+				SELECT
+					A.*
+				FROM
+					SCENARIO_DATA A
+				INNER JOIN
+					SCENARIO_LIST B
+				ON
+					A.SCEN_ID = B.SCEN_ID
+				) C
+			WHERE
+				SCEN_ID = #{indi_id}
+			) B
+		WHERE
+			DISTRICT_CD LIKE SUBSTR(#{district_info}, 1, 2) || '%'
+		ORDER BY DISTRICT_CD
+	</select>
+</mapper>

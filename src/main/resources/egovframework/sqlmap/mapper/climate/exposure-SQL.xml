@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="exposure">
+	<select id="selectAnalysis" parameterType="EgovMap"
+		resultType="EgovMap">
+		<![CDATA[
+			SELECT
+				SECTION, YEAR, VAL
+			FROM
+				VESTAP_EXPOSURE_ANALYSIS(#{x}::NUMERIC,#{y}::NUMERIC, #{scen})
+			ORDER BY SECTION, YEAR
+		]]>
+	</select>
+
+	<!-- 기후노툴 메뉴 전용 옵션 SELECT -->
+	<select id="selectExposureOption" parameterType="EgovMap" resultType="EgovMap">
+		SELECT DISTINCT 
+		<choose>
+			<when test="section != null and section != ''">
+				YEAR_ID
+				,(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = YEAR_ID) as YEAR_NM
+				,YEAR_TYPE
+			</when>
+			<when test="model != null and model != ''">
+				RCP_ID,(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = RCP_ID) as RCP_NM
+			</when>
+			<otherwise>
+				MDL_ID, (SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = MDL_ID) as MDL_NM
+			</otherwise>
+		</choose>
+		FROM 
+			EXPOSURE_OPTION 
+		WHERE 1=1 
+			<if test="section != null and section != ''">
+				AND RCP_ID = #{section}
+			</if>
+			<if test="model != null and model != ''">
+				AND MDL_ID = #{model} 
+			</if>
+		ORDER BY 
+			<choose>
+				<when test="section != null and section != ''">
+					1,3 ASC
+				</when>
+				<otherwise>
+					1 ASC
+				</otherwise>
+			</choose>
+	</select>
+
+	<select id="selectEnsembleData" parameterType="EgovMap"
+		resultType="EgovMap">
+		<![CDATA[
+		SELECT VALUE_MONTH
+		, SUM(CM001) AS CM001
+		, SUM(CM002) AS CM002
+		, SUM(CM003) AS CM003
+		, SUM(CM004) AS CM004
+		, SUM(CM005) AS CM005
+		, SUM(CM006) AS CM006
+		FROM
+		(
+		SELECT
+		VALUE_MONTH
+		,CASE MDL_ID WHEN 'CM001' THEN AVG_AVG ELSE 0 END AS CM001
+		,CASE MDL_ID WHEN 'CM002' THEN AVG_AVG ELSE 0 END AS CM002
+		,CASE MDL_ID WHEN 'CM003' THEN AVG_AVG ELSE 0 END AS CM003
+		,CASE MDL_ID WHEN 'CM004' THEN AVG_AVG ELSE 0 END AS CM004
+		,CASE MDL_ID WHEN 'CM005' THEN AVG_AVG ELSE 0 END AS CM005
+		,CASE MDL_ID WHEN 'CM006' THEN AVG_AVG ELSE 0 END AS CM006
+		FROM
+		(
+		SELECT MDL_ID, VALUE_MONTH, TRUNC(AVG(AVG_VALUE),2) AS AVG_AVG
+		FROM
+		]]>
+		<choose>
+			<when test="variable.equals('VC001')">IC400_PRCP_DATA</when>
+			<when test="variable.equals('VC002')">IC400_TMAX_DATA</when>
+			<when test="variable.equals('VC003')">IC400_TMIN_DATA</when>
+			<when test="variable.equals('VC004')">IC400_TAVG_DATA</when>
+		</choose>
+		<![CDATA[
+		WHERE 1=1
+		AND DISTRICT_CD LIKE #{district}||'%'
+		AND SECTION_ID = #{section}
+		AND VALUE_YEAR::INTEGER >= SPLIT_PART((SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = #{year}),'~',1)::INTEGER
+		AND VALUE_YEAR::INTEGER <= SPLIT_PART((SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = #{year}),'~',2)::INTEGER
+		GROUP BY MDL_ID, VALUE_MONTH
+		)BASE
+		)PV
+		GROUP BY VALUE_MONTH
+		ORDER BY VALUE_MONTH ASC
+		]]>
+	</select>
+
+	<select id="selectEnsembleRange" parameterType="EgovMap"
+		resultType="EgovMap">
+		<![CDATA[
+		SELECT
+		VALUE_MONTH
+		,TRUNC(AVG(MIN_VALUE),2) AS MIN_AVG
+		, TRUNC(AVG(AVG_VALUE),2) AS AVG_AVG
+		, TRUNC(AVG(MAX_VALUE),2) AS MAX_AVG
+		FROM 
+		]]>
+		<choose>
+			<when test="variable.equals('VC001')">IC400_PRCP_DATA</when>
+			<when test="variable.equals('VC002')">IC400_TMAX_DATA</when>
+			<when test="variable.equals('VC003')">IC400_TMIN_DATA</when>
+			<when test="variable.equals('VC004')">IC400_TAVG_DATA</when>
+		</choose>
+		<![CDATA[
+		WHERE 1=1
+		AND DISTRICT_CD LIKE #{district}||'%'
+		AND SECTION_ID = #{section}
+		AND VALUE_YEAR::INTEGER >= SPLIT_PART((SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = #{year}),'~',1)::INTEGER
+		AND VALUE_YEAR::INTEGER <= SPLIT_PART((SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = #{year}),'~',2)::INTEGER
+		GROUP BY VALUE_MONTH
+		ORDER BY VALUE_MONTH ASC
+		]]>
+	</select>
+	
+	<select id="selectScenarioList" parameterType="EgovMap" resultType="EgovMap">
+		<![CDATA[
+			SELECT 
+				INDI_ID
+				,INDI_NM
+			FROM
+			(
+			SELECT 
+				SCEN_ID AS INDI_ID
+				,SCEN_NM AS INDI_NM
+			FROM 
+				SCENARIO_LIST
+			WHERE
+				SCEN_ID IN (SELECT DISTINCT INDI_ID FROM ITEM_INDICATOR WHERE 1=1 AND ITEM_ID = #{item} AND SECTOR_ID = 'SEC01')
+			)SC
+			WHERE
+			 INDI_NM LIKE '%기온%' OR INDI_NM LIKE '%강수%'
+			ORDER BY INDI_ID ASC
+		]]>
+	</select>
+</mapper>

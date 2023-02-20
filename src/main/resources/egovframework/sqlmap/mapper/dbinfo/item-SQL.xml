@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dbinfoItem">
+	
+	<select id="getItemList" parameterType="map" resultType="hashMap">
+		
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY ITEM_ID) AS RNUM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = A.FIELD_ID) AS FIELD_NM,
+				*
+			FROM
+				(
+				SELECT
+					*
+				FROM
+					ITEM_LIST
+				<if test="field != 'all'">
+				WHERE
+					FIELD_ID = #{field}
+				</if>
+				) A
+			<if test="keywordList != null">
+			WHERE
+				<foreach collection="keywordList" item="item" separator="OR">
+					LOWER(ITEM_NM) LIKE '%' || LOWER(#{item}) || '%'
+				</foreach>
+			</if>
+			LIMIT #{endRow}
+			) B
+		OFFSET #{startRow}
+		
+	</select>
+	
+	<select id="getItemListTotCnt" parameterType="map" resultType="int">
+		
+		SELECT
+			COUNT(*)
+		FROM
+			(
+			SELECT
+				*
+			FROM
+				ITEM_LIST
+			<if test="field != 'all'">
+			WHERE
+				FIELD_ID = #{field}
+			</if>
+			) A
+		<if test="keywordList != null">
+		WHERE
+			<foreach collection="keywordList" item="item" separator="OR">
+				LOWER(ITEM_NM) LIKE '%' || LOWER(#{item}) || '%'
+			</foreach>
+		</if>
+		
+	</select>
+	
+	<select id="getIndicatorInfo" parameterType="map" resultType="hashMap">
+		
+		SELECT
+			*,
+			CASE
+				WHEN INDI_CONSTRUCT_CD = 'VT001' THEN 'A'
+				WHEN INDI_CONSTRUCT_CD = 'VT002' THEN 'B'
+				WHEN INDI_CONSTRUCT_CD = 'VT003' THEN 'C'
+				WHEN INDI_CONSTRUCT_CD = 'VT008' THEN 'A`'
+				WHEN INDI_CONSTRUCT_CD = 'VT004' THEN 'B`'
+				WHEN INDI_CONSTRUCT_CD = 'VT005' THEN 'C`'
+				WHEN INDI_CONSTRUCT_CD = 'VT006' THEN 'D'
+				WHEN INDI_CONSTRUCT_CD = 'VT007' THEN 'E'
+			END AS INDI_CONSTRUCT
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY SECTOR_ID ASC, INDI_ID ASC) AS RNUM,
+				(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = A.SECTOR_ID) AS SECTOR_NM,
+				A.INDI_ID,
+				CASE
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'SC' THEN (SELECT SCEN_NM FROM SCENARIO_LIST WHERE SCEN_ID = A.INDI_ID)
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'IC' THEN (SELECT INDI_NM FROM INDICATOR_LIST WHERE INDI_ID = A.INDI_ID)
+				END AS INDI_NM,
+				CASE
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'SC' THEN (SELECT SCEN_CONSTRUCT FROM SCENARIO_LIST WHERE SCEN_ID = A.INDI_ID)
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'IC' THEN (SELECT INDI_CONSTRUCT FROM INDICATOR_LIST WHERE INDI_ID = A.INDI_ID)
+				END AS INDI_CONSTRUCT_CD,
+				CASE
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'SC' THEN (SELECT (SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = SCEN_CONSTRUCT) FROM SCENARIO_LIST WHERE SCEN_ID = A.INDI_ID)
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'IC' THEN (SELECT (SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = INDI_CONSTRUCT) FROM INDICATOR_LIST WHERE INDI_ID = A.INDI_ID)
+				END AS INDI_CONSTRUCT_NM,
+				CASE
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'SC' THEN (SELECT SCEN_UNIT FROM SCENARIO_LIST WHERE SCEN_ID = A.INDI_ID)
+					WHEN SUBSTR(INDI_ID, 1, 2) = 'IC' THEN (SELECT INDI_UNIT FROM INDICATOR_LIST WHERE INDI_ID = A.INDI_ID)
+				END AS INDI_UNIT,
+				INDI_VAL_WEIGHT
+			FROM
+				ITEM_INDICATOR A
+			WHERE
+				ITEM_ID = #{item_id}
+				<if test="sector_id != 'all'">
+				AND
+				SECTOR_ID = #{sector_id}
+				</if>
+			) B
+	</select>
+	
+	<select id="getItemInfo" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			ITEM_LISt
+		WHERE
+			ITEM_ID = #{item_id}
+	</select>
+	
+</mapper>

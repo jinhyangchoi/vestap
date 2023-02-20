@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="suggestion">
+
+	<select id="isUserBoard" parameterType="vestap.sys.bbs.cmm.BoardVO"
+		resultType="int">
+		SELECT
+		COUNT(*)
+		FROM
+		BOARD_SUGGESTION
+		WHERE
+		BBS_IDX = #{bbs_idx}
+<!-- 		<if test="userAuth != 'A'.toString()">
+			<![CDATA[
+			AND
+			BBS_WRITER = #{bbs_writer}
+			]]>
+		</if> -->
+
+
+	</select>
+
+	<sql id="boardList">
+
+		WITH RECURSIVE board_sugg(rnum1,bbs_idx, bbs_title, bbs_content, bbs_writer, bbs_regdate, bbs_hit, bbs_ref, bbs_depth, LEVEL, PATH, CYCLE) 
+  		AS (
+		SELECT
+			ROW_NUMBER() OVER(ORDER BY BBS_idx ASC) AS RNUM1, 
+			g.bbs_idx, 
+			g.bbs_title,
+			g.bbs_content, 
+			g.bbs_writer, 
+			g.bbs_regdate, 
+			g.bbs_hit, 
+			g.bbs_ref,
+			g.bbs_depth, 
+			0, 
+			ARRAY[g.bbs_idx], 
+			false,
+			g.bbs_use
+		FROM 
+			board_suggestion g
+		WHERE 
+			g.bbs_ref = 0
+		<choose>
+			<when test="userAuth eq 'A'.toString()">
+			
+			</when>
+			<otherwise>
+				AND
+				BBS_WRITER = #{bbs_writer}
+
+			</otherwise>
+		</choose>
+		UNION ALL
+
+		SELECT 
+			RNUM1, 
+			g.bbs_idx, 
+			g.bbs_title, 
+			g.bbs_content, 
+			g.bbs_writer,
+			g.bbs_regdate, 
+			g.bbs_hit, 
+			g.bbs_ref, 
+			g.bbs_depth, 
+			LEVEL + 1, 
+			PATH ||	g.bbs_idx, 
+			g.bbs_idx = ANY(PATH),
+			g.bbs_use
+		FROM 
+			board_suggestion g, board_sugg sb
+		WHERE 
+			g.bbs_ref = sb.bbs_idx AND NOT CYCLE
+		), 
+	  LIST_SET AS
+	  (	
+		  SELECT 
+		      RNUM1,
+		      bbs_idx,
+		      bbs_title,
+		      bbs_content,
+		      bbs_writer,
+		      TO_CHAR(BBS_REGDATE, 'YYYY-MM-DD') AS BBS_REGDATE,
+		      bbs_hit,
+		      bbs_ref, 
+		      lpad(' ', LEVEL) || bbs_title AS bbs_title2, 
+		      bbs_depth, 
+		      LEVEL, 
+		      PATH,
+		      bbs_use
+          FROM board_sugg
+		
+		<if test="keywordList != null">
+			WHERE
+			<choose>
+				<when test="category == 'all'">
+					<foreach collection="keywordList" item="item" separator="OR">
+						(
+						LOWER(BBS_TITLE) LIKE '%' || LOWER(#{item}) || '%'
+						OR
+						LOWER(BBS_CONTENT) LIKE '%' || LOWER(#{item}) || '%'
+						OR
+						LOWER(BBS_WRITER) LIKE '%' || LOWER(#{item}) || '%'
+						)
+					</foreach>
+				</when>
+				<otherwise>
+					<foreach collection="keywordList" item="item" separator="OR">
+						LOWER(${category}) LIKE '%' || LOWER(#{item}) || '%'
+					</foreach>
+				</otherwise>
+			</choose>
+		</if>
+		 ORDER BY PATH desc
+		 )
+	</sql>
+
+	<select id="getSuggestionBoard" parameterType="vestap.sys.bbs.cmm.BoardVO"
+		resultType="vestap.sys.bbs.cmm.BoardVO">
+
+		<include refid="boardList" />
+		SELECT * FROM
+		(
+			select
+				row_number() over(order by rnum1 asc, path desc) as RNUM,
+				*
+			from 
+				LIST_SET
+			order by rnum desc
+			LIMIT #{endRow}
+		) A
+		OFFSET #{startRow}
+
+	</select>
+
+	<select id="getSuggestionTotCnt" parameterType="vestap.sys.bbs.cmm.BoardVO"
+		resultType="int">
+
+		<include refid="boardList" />
+
+		SELECT
+		COUNT(*)
+		FROM
+		LIST_SET
+	</select>
+
+	<select id="getSuggestionContent" parameterType="vestap.sys.bbs.cmm.BoardVO"
+		resultType="vestap.sys.bbs.cmm.BoardVO">
+		SELECT
+		BBS_TITLE,
+		BBS_CONTENT,
+		BBS_WRITER,
+		TO_CHAR(BBS_REGDATE, 'YYYY-MM-DD') AS BBS_REGDATE,
+		BBS_HIT,
+		BBS_REF,
+		BBS_DEPTH,
+		BBS_USE
+		FROM
+		BOARD_SUGGESTION
+		WHERE
+		BBS_IDX = #{bbs_idx}
+<!-- 	
+		<if test="userAuth != 'A'.toString()">
+			<![CDATA[
+			AND
+			BBS_WRITER = #{bbs_writer}
+			]]></if> -->
+	</select>
+
+	<select id="getSuggestionFile" parameterType="int"
+		resultType="vestap.sys.bbs.cmm.BoardFileVO">
+		SELECT
+			BBS_IDX,
+			ORG_FILE_NM,
+			STD_FILE_NM,
+			FILE_PATH,
+			FILE_HIT
+		FROM
+			BOARD_FILE
+		WHERE
+			BBS_IDX = #{param}
+			AND
+			BBS_NM = 'suggestion'
+	</select>
+
+	<select id="getSuggestionFileInfo" parameterType="vestap.sys.bbs.cmm.BoardFileVO"
+		resultType="vestap.sys.bbs.cmm.BoardFileVO">
+		SELECT
+		BBS_IDX,
+		ORG_FILE_NM,
+		STD_FILE_NM,
+		FILE_PATH,
+		FILE_HIT
+		FROM
+		BOARD_FILE
+		WHERE
+		BBS_IDX = #{bbs_idx}
+		AND
+		STD_FILE_NM = #{std_file_nm}
+	</select>
+
+	<update id="setSuggestionFileHit" parameterType="vestap.sys.bbs.cmm.BoardFileVO">
+		UPDATE
+		BOARD_FILE
+		SET
+		FILE_HIT = FILE_HIT + 1
+		WHERE
+		BBS_IDX = #{bbs_idx}
+		AND
+		STD_FILE_NM = #{std_file_nm}
+	</update>
+
+	<update id="setSuggestionHit" parameterType="vestap.sys.bbs.cmm.BoardVO">
+		UPDATE
+		BOARD_SUGGESTION
+		SET
+		BBS_HIT = BBS_HIT + 1
+		WHERE
+		BBS_IDX = #{bbs_idx}
+	</update>
+
+	<insert id="setSuggestionBoard" parameterType="vestap.sys.bbs.cmm.BoardVO">
+
+		INSERT INTO
+		BOARD_SUGGESTION
+		(
+		BBS_TITLE,
+		BBS_CONTENT,
+		BBS_WRITER,
+		BBS_REGDATE
+		)
+		VALUES
+		(
+		#{bbs_title},
+		#{bbs_content},
+		#{bbs_writer},
+		NOW()
+		)
+		<selectKey keyProperty="bbs_idx" resultType="int" order="AFTER">
+			SELECT CURRVAL('SEQ_SUGGESTION_IDX')
+		</selectKey>
+	</insert>
+
+	<insert id="setBoardFile" parameterType="java.util.List">
+		INSERT INTO
+		BOARD_FILE
+		(
+		BBS_IDX,
+		BBS_NM,
+		ORG_FILE_NM,
+		STD_FILE_NM,
+		FILE_PATH
+		)
+		VALUES
+		<foreach collection="list" item="item" separator=",">
+			(
+			#{item.bbs_idx},
+			#{item.bbs_nm},
+			#{item.org_file_nm},
+			#{item.std_file_nm},
+			#{item.file_path}
+			)
+		</foreach>
+
+	</insert>
+
+	<update id="updateSuggestionBoard" parameterType="vestap.sys.bbs.cmm.BoardVO">
+		UPDATE
+		BOARD_SUGGESTION
+		SET
+		BBS_TITLE = #{bbs_title},
+		BBS_CONTENT = #{bbs_content}
+		WHERE
+		BBS_IDX = #{bbs_idx}
+		AND
+		BBS_WRITER = #{bbs_writer}
+	</update>
+
+	<delete id="deleteSuggestion" parameterType="vestap.sys.bbs.cmm.BoardVO">
+		update 
+			board_suggestion 
+		set 
+			bbs_title='삭제된 건의사항입니다.',
+			bbs_content='삭제된 건의사항입니다.',
+			bbs_use='N'
+		where
+		BBS_IDX = #{bbs_idx}
+	</delete>
+
+	<delete id="deleteSuggestionFile" parameterType="int">
+		DELETE FROM
+		BOARD_FILE
+		WHERE
+		BBS_IDX = #{param}
+	</delete>
+
+	<delete id="deleteSuggestionFileOne" parameterType="vestap.sys.bbs.cmm.BoardFileVO">
+		DELETE FROM
+		BOARD_FILE
+		WHERE
+		BBS_IDX = #{bbs_idx}
+		AND
+		STD_FILE_NM = #{std_file_nm}
+	</delete>
+
+
+	<insert id="setSuggestionRefBoard" parameterType="vestap.sys.bbs.cmm.BoardVO">
+
+		INSERT INTO
+		BOARD_SUGGESTION
+		(
+		BBS_TITLE,
+		BBS_CONTENT,
+		BBS_WRITER,
+		BBS_REGDATE,
+		BBS_REF,
+		BBS_DEPTH
+		)
+		VALUES
+		(
+		#{bbs_title},
+		#{bbs_content},
+		#{bbs_writer},
+		NOW(),
+		#{bbs_ref},
+		#{bbs_depth}
+		)
+		<selectKey keyProperty="bbs_idx" resultType="int" order="AFTER">
+			SELECT CURRVAL('SEQ_SUGGESTION_IDX')
+		</selectKey>
+	</insert>
+
+</mapper>

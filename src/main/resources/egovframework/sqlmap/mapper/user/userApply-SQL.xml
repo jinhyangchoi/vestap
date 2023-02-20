@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="userApplyDAO">
+	
+	<select id="userApplyDAO.userApplyChk" parameterType="vestap.sys.sec.user.UserApplyVO" resultType="int">
+		SELECT COUNT(*)
+		  FROM USER_INFO
+		 WHERE USER_IP = #{userIp}
+		   AND RCPT_DT BETWEEN (CURRENT_TIMESTAMP - INTERVAL '5MIN') AND CURRENT_TIMESTAMP
+	</select>
+	
+	<select id="userApplyDAO.userApplyFileIdx" parameterType="vestap.sys.sec.user.UserApplyVO" resultType="vestap.sys.sec.user.UserApplyVO">
+		select coalesce ((select max(file_idx) from user_info), 0)+1 as fileIdx
+	</select>
+	
+	<insert id="userApplyDAO.userApplyInsert" parameterType="vestap.sys.sec.user.UserApplyVO">
+		INSERT INTO USER_INFO (
+             USER_ID,
+             USER_PW,
+             USER_NM,
+             USER_RCP,
+             USER_SCR,
+             USER_FLD,
+             USER_AUTH,
+             USER_DIST,
+             USER_ITEM,
+             USER_YEAR,
+             USER_ACCESS,
+             USER_IP,
+             USER_EMAIL,
+             USER_ORG_NM,
+             USER_GOV_YN,
+             USE_YN,
+             RCPT_DT,
+             FILE_IDX,
+             FILE_ATCH_YN,
+             EML_RCPTN_AGRE_YN,
+             FRST_REG_DT,
+             FRST_REG_USER,
+             SECURITY_AGREE_YN,
+             PURPOSE_USE_CD,
+             PURPOSE_USE_NM
+		) VALUES (
+             #{userId},
+             #{userPw},
+             #{userNm},
+             #{userRcp},
+             #{userScr},
+             #{userFld},
+             #{userAuth},
+             #{userDist},
+             #{userItem},
+             #{userYear},
+             #{userAccess},
+             #{userIp},
+             #{userEmail},
+             #{userOrgNm},
+             #{userGovYn},
+             #{useYn},
+             NOW(),
+			 (SELECT COALESCE ((SELECT MAX(FILE_IDX)FROM USER_INFO), 0)+1),
+			 #{fileAtchYn},
+			 #{emlRcptnAgreYn},
+			 NOW(),
+			 #{frstRegUser},
+			 #{securityAgreeYn},
+             #{purposeUseCd},
+             #{purposeUseNm}
+		)
+	</insert>
+	
+	<insert id="userApplyDAO.userApplyInsertFile" parameterType="vestap.sys.sec.user.UserApplyVO">
+		INSERT INTO USER_FILE (
+		            FILE_IDX,
+		            FILE_CATGNM,
+		            ORG_FILE_NM,
+		            STD_FILE_NM,
+		            FILE_PATH,
+		            FRST_REG_USER,
+		            FRST_REG_DT,
+		            USE_YN
+		) VALUES (
+		            (select coalesce ((SELECT max(file_idx)FROM user_info), 0)+1),
+		            #{fileCatgnm},
+		            #{orgFileNm},
+		            #{stdFileNm},
+		            #{filePath},
+		            #{frstRegUser},
+		            NOW(),
+		            'Y'
+		)
+	</insert>
+	
+	<update id="userApplyDAO.userApplyUpdateFile" parameterType="vestap.sys.sec.user.UserApplyVO">
+		<![CDATA[
+			UPDATE USER_FILE
+			   SET
+		           FILE_CATGNM   = #{fileCatgnm},
+		           ORG_FILE_NM   = #{orgFileNm},
+		           STD_FILE_NM   = #{stdFileNm},
+		           FILE_PATH     = #{filePath},
+		           FRST_REG_USER = #{frstRegUser},
+		           USE_YN        = 'Y',
+		           MDFCN_DT      = NOW()
+             WHERE 
+                   FILE_IDX      = #{fileIdx}
+		]]>
+	</update>
+	
+	<update id="userApplyDAO.userApplyUpdate" parameterType="vestap.sys.sec.user.UserApplyVO">
+		<![CDATA[
+			UPDATE USER_INFO SET
+		]]>
+			<if test="userNm != null and !userNm.equals('')">
+					 USER_NM = #{userNm}
+			</if>
+			<if test="userPw != null and !userPw.equals('')">
+					,USER_PW = #{userPw}
+			</if>
+			<if test="userOrgNm != null and !userOrgNm.equals('')">
+					,USER_ORG_NM = #{userOrgNm}
+			</if>
+			<if test="aprvDt != null and !aprvDt.equals('')">
+					,APRV_DT = NOW()
+			</if>
+			
+			<if test="userEmail != null and !userEmail.equals('')">
+					,USER_EMAIL = #{userEmail}
+			</if>
+			<if test="userGovYn != null and !userGovYn.equals('')">
+					,USER_GOV_YN = #{userGovYn}
+			</if>
+			<if test="userAuth != null and !userAuth.equals('')">
+					,USER_AUTH = #{userAuth}
+			</if>
+			<if test="useYn != null and !useYn.equals('')">
+					,USE_YN = #{useYn}
+			</if>
+			<!-- 
+			<if test="sido != null and !sido.equals('')">
+			<choose>
+				<when test="sigungu != null and !sigungu.equals('')">
+					,USER_DIST = #{sigungu}
+				</when>
+				<otherwise>
+					,USER_DIST = #{sido}
+				</otherwise>
+			</choose>
+			</if>
+			 -->
+			<if test="userDist != null and !userDist.equals('')">
+					,USER_DIST = #{userDist}
+			</if>
+			<if test="fileAtchYn != null and !fileAtchYn.equals('')">
+					,FILE_ATCH_YN = #{fileAtchYn}
+			</if>
+			<if test="fileIdx != null and !fileIdx.equals('')">
+					,FILE_IDX = #{fileIdx}
+			</if>
+			<if test="emlRcptnAgreYn != null and !emlRcptnAgreYn.equals('')">
+					,EML_RCPTN_AGRE_YN = #{emlRcptnAgreYn}
+			</if>
+			<if test="securityAgreeYn != null and !securityAgreeYn.equals('')">
+					,SECURITY_AGREE_YN = #{securityAgreeYn}
+			</if>
+			<if test="purposeUseCd != null and !purposeUseCd.equals('')">
+					,PURPOSE_USE_CD = #{purposeUseCd}
+			</if>
+			<if test="purposeUseNm != null and !purposeUseNm.equals('')">
+					,PURPOSE_USE_NM = #{purposeUseNm}
+			</if>
+			        ,MDFCN_DT = NOW()
+		<![CDATA[
+			WHERE
+				USER_ID = #{userId}
+		]]>
+	</update>
+	
+	<select id="userApplyDAO.userApplyExistFileChk" parameterType="vestap.sys.sec.user.UserApplyVO" resultType="vestap.sys.sec.user.UserApplyVO">
+		SELECT FILE_IDX fileIdx,
+               FILE_CATGNM fileCatgnm,
+               ORG_FILE_NM orgFileNm,
+               STD_FILE_NM stdFileNm,
+               FILE_PATH filePath,
+               FRST_REG_USER frstRegUser,
+               FRST_REG_DT frstRegDt,
+               USE_YN useYn
+          FROM USER_FILE
+         WHERE FRST_REG_USER = #{userId}
+           AND FILE_CATGNM = #{fileCatgnm}
+           <if test="fileIdx != null and !fileIdx.equals('')">
+            OR FILE_IDX = #{fileIdx}
+           </if>
+	</select>
+	
+	<delete id="userApplyDAO.userApplyDeleteFile" parameterType="vestap.sys.sec.user.UserApplyVO">
+		DELETE FROM
+			   USER_FILE
+		 WHERE FILE_CATGNM = #{fileCatgnm}
+		   AND FRST_REG_USER = #{userId}
+		   <if test="fileIdx != null and !fileIdx.equals('')">
+		    OR FILE_IDX = #{fileIdx}
+		   </if>
+	</delete>
+	
+</mapper>

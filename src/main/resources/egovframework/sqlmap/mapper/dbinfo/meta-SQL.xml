@@ -1,0 +1,429 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dbinfoMeta">
+	
+	<select id="getMetaList" parameterType="map" resultType="hashMap">
+		WITH TABLE_SET AS(
+			SELECT
+				*
+			FROM
+				REF_META
+			WHERE
+				1 = 1
+				
+				<if test="meta_offer != 'all'">
+				AND META_OFFER_ORG = #{meta_offer}
+				</if>
+				
+				<if test="meta_system != 'all'">
+				AND META_OFFER_SYSTEM = #{meta_system}
+				</if>
+			),
+			YEAR_SET_A AS(
+				SELECT
+					META_ID,
+					META_NM,
+					META_UNIT,
+					META_OFFER_ORG,
+					META_OFFER_DEPT,
+					META_OFFER_SYSTEM,
+					META_POSITION,
+					META_BASE_UNIT,
+					META_CON_UNIT,
+					META_DATA_TYPE,
+					META_SCALE,
+					META_CON_YEAR,
+					META_URL,
+					META_NOTE
+				FROM
+					(
+					SELECT
+						*
+					FROM
+						TABLE_SET
+					WHERE
+						POSITION('-' IN META_CON_YEAR) = 0
+					) A
+				WHERE
+					1 = 1
+					<if test="start_year != 'all'">
+						<![CDATA[AND META_CON_YEAR::numeric >= #{start_year}::numeric]]>
+					</if>
+					<if test="end_year != 'all'">
+						<![CDATA[AND META_CON_YEAR::numeric <= #{end_year}::numeric]]>
+					</if>
+					
+			),
+			YEAR_SET_B AS(
+				SELECT
+					META_ID,
+					META_NM,
+					META_UNIT,
+					META_OFFER_ORG,
+					META_OFFER_DEPT,
+					META_OFFER_SYSTEM,
+					META_POSITION,
+					META_BASE_UNIT,
+					META_CON_UNIT,
+					META_DATA_TYPE,
+					META_SCALE,
+					META_CON_YEAR,
+					META_URL,
+					META_NOTE
+				FROM
+					(
+					SELECT
+						*,
+						SUBSTR(META_CON_YEAR, 1, POSITION('-' IN META_CON_YEAR) - 1) AS START_YEAR,
+						SUBSTR(META_CON_YEAR, POSITION('-' IN META_CON_YEAR) + 1) AS END_YEAR
+					FROM
+						TABLE_SET
+					WHERE
+						POSITION('-' IN META_CON_YEAR) != 0
+					) A
+				WHERE
+					1 = 1
+					<choose>
+						<when test="start_year != 'all' and end_year == 'all'">
+							<![CDATA[AND START_YEAR::numeric >= #{start_year}::numeric OR END_YEAR::numeric >= #{start_year}::numeric]]>
+						</when>
+						<when test="start_year == 'all' and end_year != 'all'">
+							<![CDATA[AND START_YEAR::numeric <= #{end_year}::numeric OR END_YEAR:numeric <= #{end_year}::numeric]]>
+						</when>
+						<when test="start_year != 'all' and end_year != 'all'">
+							<![CDATA[
+							AND
+								(START_YEAR::numeric >= #{start_year}::numeric AND START_YEAR::numeric <= #{end_year}::numeric)
+								OR
+								(END_YEAR::numeric >= #{start_year}::numeric AND END_YEAR::numeric <= #{end_year}::numeric)
+							
+							]]>
+						</when>
+					</choose>
+			),
+			YEAR_UNION_SET AS(
+				SELECT
+					*
+				FROM
+					(
+					SELECT
+						*
+					FROM
+						YEAR_SET_A
+					UNION
+					
+					SELECT
+						*
+					FROM
+						YEAR_SET_B
+					) A
+			),
+			META_KEYWORD_SET AS(
+				SELECT
+					*
+				FROM
+				<choose>
+					<when test="start_year != 'all' or end_year != 'all'">
+					YEAR_UNION_SET
+					</when>
+					<otherwise>
+					TABLE_SET
+					</otherwise>
+				</choose>
+				
+				<if test="keywordList != null">
+				WHERE
+					<foreach collection="keywordList" item="item" separator="OR">
+						LOWER(META_NM) LIKE '%' || LOWER(#{item}) || '%'
+					</foreach>
+				</if>
+			)
+			SELECT
+				*
+			FROM
+				(
+				SELECT
+					ROW_NUMBER() OVER(ORDER BY META_ID) AS RNUM,
+					*
+				FROM
+					META_KEYWORD_SET
+				LIMIT #{endRow}
+				) A
+			OFFSET #{startRow}
+		
+	</select>
+	
+	<select id="getMetaListTotCnt" parameterType="map" resultType="int">
+		WITH TABLE_SET AS(
+			SELECT
+				*
+			FROM
+				REF_META
+			WHERE
+				1 = 1
+				
+				<if test="meta_offer != 'all'">
+				AND META_OFFER_ORG = #{meta_offer}
+				</if>
+				
+				<if test="meta_system != 'all'">
+				AND META_OFFER_SYSTEM = #{meta_system}
+				</if>
+			),
+			YEAR_SET_A AS(
+				SELECT
+					META_ID,
+					META_NM,
+					META_UNIT,
+					META_OFFER_ORG,
+					META_OFFER_DEPT,
+					META_OFFER_SYSTEM,
+					META_POSITION,
+					META_BASE_UNIT,
+					META_CON_UNIT,
+					META_DATA_TYPE,
+					META_SCALE,
+					META_CON_YEAR,
+					META_URL,
+					META_NOTE
+				FROM
+					(
+					SELECT
+						*
+					FROM
+						TABLE_SET
+					WHERE
+						POSITION('-' IN META_CON_YEAR) = 0
+					) A
+				WHERE
+					1 = 1
+					<if test="start_year != 'all'">
+						<![CDATA[AND META_CON_YEAR::numeric >= #{start_year}::numeric]]>
+					</if>
+					<if test="end_year != 'all'">
+						<![CDATA[AND META_CON_YEAR::numeric <= #{end_year}::numeric]]>
+					</if>
+					
+			),
+			YEAR_SET_B AS(
+				SELECT
+					META_ID,
+					META_NM,
+					META_UNIT,
+					META_OFFER_ORG,
+					META_OFFER_DEPT,
+					META_OFFER_SYSTEM,
+					META_POSITION,
+					META_BASE_UNIT,
+					META_CON_UNIT,
+					META_DATA_TYPE,
+					META_SCALE,
+					META_CON_YEAR,
+					META_URL,
+					META_NOTE
+				FROM
+					(
+					SELECT
+						*,
+						SUBSTR(META_CON_YEAR, 1, POSITION('-' IN META_CON_YEAR) - 1) AS START_YEAR,
+						SUBSTR(META_CON_YEAR, POSITION('-' IN META_CON_YEAR) + 1) AS END_YEAR
+					FROM
+						TABLE_SET
+					WHERE
+						POSITION('-' IN META_CON_YEAR) != 0
+					) A
+				WHERE
+					1 = 1
+					<choose>
+						<when test="start_year != 'all' and end_year == 'all'">
+							<![CDATA[AND START_YEAR::numeric >= #{start_year}::numeric OR END_YEAR::numeric >= #{start_year}::numeric]]>
+						</when>
+						<when test="start_year == 'all' and end_year != 'all'">
+							<![CDATA[AND START_YEAR::numeric <= #{end_year}::numeric OR END_YEAR:numeric <= #{end_year}::numeric]]>
+						</when>
+						<when test="start_year != 'all' and end_year != 'all'">
+							<![CDATA[
+							AND
+								(START_YEAR::numeric >= #{start_year}::numeric AND START_YEAR::numeric <= #{end_year}::numeric)
+								OR
+								(END_YEAR::numeric >= #{start_year}::numeric AND END_YEAR::numeric <= #{end_year}::numeric)
+							
+							]]>
+						</when>
+					</choose>
+			),
+			YEAR_UNION_SET AS(
+				SELECT
+					*
+				FROM
+					(
+					SELECT
+						*
+					FROM
+						YEAR_SET_A
+					UNION
+					
+					SELECT
+						*
+					FROM
+						YEAR_SET_B
+					) A
+			),
+			META_KEYWORD_SET AS(
+				SELECT
+					*
+				FROM
+				<choose>
+					<when test="start_year != 'all' or end_year != 'all'">
+					YEAR_UNION_SET
+					</when>
+					<otherwise>
+					TABLE_SET
+					</otherwise>
+				</choose>
+				
+				<if test="keywordList != null">
+				WHERE
+					<foreach collection="keywordList" item="item" separator="OR">
+						LOWER(META_NM) LIKE '%' || LOWER(#{item}) || '%'
+					</foreach>
+				</if>
+			)
+			SELECT
+				COUNT(*)
+			FROM
+				META_KEYWORD_SET
+		
+	</select>
+	
+	<select id="getOfferOrg" resultType="String">
+		SELECT
+			DISTINCT META_OFFER_ORG
+		FROM
+			REF_META
+		ORDER BY
+			META_OFFER_ORG
+	</select>
+	
+	<select id="getOfferSystem" parameterType="String" resultType="String">
+		SELECT
+			DISTINCT META_OFFER_SYSTEM
+		FROM
+			REF_META
+		<if test="_parameter != 'all'">
+		WHERE
+			META_OFFER_ORG = #{_parameter}
+		</if>
+		ORDER BY
+			META_OFFER_SYSTEM
+	</select>
+	
+	
+	<select id="getConstructYear" resultType="hashMap">
+		
+		WITH RANGE_YEAR_SET AS(
+			SELECT
+				META_CON_YEAR
+			FROM
+				REF_META
+			WHERE
+				POSITION('-' IN META_CON_YEAR) != 0
+		),
+		SPLIT_YEAR_SET AS(
+			SELECT
+				SUBSTR(META_CON_YEAR, 1, POSITION('-' IN META_CON_YEAR) - 1) AS META_CON_YEAR
+			FROM
+				RANGE_YEAR_SET
+				
+			UNION ALL
+			
+			SELECT
+				SUBSTR(META_CON_YEAR, POSITION('-' IN META_CON_YEAR) + 1) AS META_CON_YEAR
+			FROM
+				RANGE_YEAR_SET
+		),
+		SINGLE_YEAR_SET AS(
+			SELECT
+				META_CON_YEAR
+			FROM
+				REF_META
+			WHERE
+				POSITION('-' IN META_CON_YEAR) = 0
+		)
+		SELECT
+			MIN(META_CON_YEAR) AS MIN_YEAR,
+			MAX(META_CON_YEAR) AS MAX_YEAR
+		FROM
+			(
+			SELECT
+				*
+			FROM
+				SPLIT_YEAR_SET
+			
+			UNION ALL
+			
+			SELECT
+				*
+			FROM
+				SINGLE_YEAR_SET
+			) A
+	</select>
+	
+	<select id="getMetaInfo" parameterType="String" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			REF_META
+		WHERE
+			META_ID = #{_parameter}
+	</select>
+	
+	<select id="getMetaIndicatorList" parameterType="map" resultType="hashMap">
+		
+		WITH REF_SET AS(
+			SELECT
+				DISTINCT INDI_ID
+			FROM
+				INDICATOR_META
+			WHERE
+				META_ID = #{meta_id}
+		)
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY A.INDI_ID) AS RNUM,
+				INDI_ID,
+				CASE SUBSTR(A.INDI_ID, 1, 2)
+					WHEN 'IC' THEN (SELECT INDI_NM FROM INDICATOR_LIST WHERE INDI_ID = A.INDI_ID)
+					WHEN 'SC' THEN (SELECT SCEN_NM FROM SCENARIO_LIST WHERE SCEN_ID = A.INDI_ID)
+				END AS INDI_NM,
+				
+				CASE SUBSTR(A.INDI_ID, 1, 2)
+					WHEN 'IC' THEN '지표'
+					WHEN 'SC' THEN '시나리오'
+				END AS INDI_TYPE
+			FROM
+				REF_SET A
+			LIMIT #{endRow}
+			) B
+		OFFSET #{startRow}
+		
+	</select>
+	
+	<select id="getMetaIndicatorListTotCnt" parameterType="map" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			(
+			SELECT
+				DISTINCT INDI_ID
+			FROM
+				INDICATOR_META
+			WHERE
+				META_ID = #{meta_id}
+			) A
+	</select>
+	
+</mapper>

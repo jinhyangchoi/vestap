@@ -1,0 +1,2003 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="customEstimation">
+	
+	<select id="getReferenceInfo" parameterType="map" resultType="hashMap">
+		
+		SELECT
+			OPTION_ID,
+			(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = OPTION_ID) AS OPTION_NM
+		FROM
+			(
+			SELECT
+				DISTINCT ${child_key} AS OPTION_ID
+			FROM
+				CLIMATE_OPTION
+			<if test="depth_key_1 != null">
+			WHERE
+				${depth_key_1} = #{depth_val_1}
+				
+				<if test="depth_key_2">
+				AND ${depth_key_2} = #{depth_val_2}
+				</if>
+			</if>
+			) A
+		ORDER BY
+			OPTION_ID
+			
+	</select>
+	
+	<select id="vulAssessment" parameterType="map" resultType="hashMap">
+		
+		<!-- ====================================================================================================================
+		01. [ ITEM_LIST_SET ]: 항목 정보
+		==================================================================================================================== -->
+		
+		WITH ITEM_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				ITEM_LIST_USER
+			WHERE
+				ITEM_ID = #{item_id}
+				AND
+				USER_ID = #{userName}
+		),
+		
+		<!-- ====================================================================================================================
+		02. [ INDI_LIST_SET ]: 항목 내 지표 정보
+		==================================================================================================================== -->
+
+		INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				ITEM_INDICATOR_USER
+			WHERE
+				ITEM_ID = (SELECT ITEM_ID FROM ITEM_LIST_USER WHERE ITEM_ID = #{item_id} AND USER_ID = #{userName})
+		),
+		
+		<!-- ====================================================================================================================
+		03-1. [ INDI_USER_DATA_SET ]: 사용자 지표 정보에 부문 추가
+		==================================================================================================================== -->
+		INDI_USER_DATA_SET AS(
+			SELECT
+				A.INDI_ID,
+				A.DISTRICT_CD,
+				A.INDI_VAL,
+				B.SECTOR_ID
+			FROM
+				INDICATOR_DATA_USER A
+			INNER JOIN
+				INDI_LIST_SET B
+			ON
+				A.INDI_ID = B.INDI_ID
+		),
+		
+		<!-- ====================================================================================================================
+		03-2-1. [ INDI_SYTM_DATA_SET ]: 시스템 지표 정보에 부문 추가
+		==================================================================================================================== -->
+		
+		INDI_SYTM_DATA_SET AS(
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+					SELECT
+						A.INDI_ID,
+						A.DISTRICT_CD,
+						A.INDI_VAL,
+						A.INDI_SPACE,
+						B.SECTOR_ID
+					FROM
+						(
+						SELECT
+							*,
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) AS INDI_SPACE
+						FROM
+							(SELECT A.INDI_ID, A.DISTRICT_CD, A.INDI_VAL, A.INDI_YEAR
+							FROM INDICATOR_DATA A, 
+							(SELECT INDI_ID, MAX(INDI_YEAR)AS INDI_YEAR FROM INDICATOR_DATA
+							GROUP BY INDI_ID) B
+							WHERE A.INDI_ID = B.INDI_ID
+								AND A.INDI_YEAR = B.INDI_YEAR) D
+						WHERE
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) = 'SPA01'
+							AND
+							LENGTH(DISTRICT_CD) <![CDATA[=]]> 7
+							AND
+							DISTRICT_CD LIKE #{district_info} || '%'
+						) A
+						
+					INNER JOIN
+						INDI_LIST_SET B
+					ON
+						A.INDI_ID = B.INDI_ID
+				
+					UNION
+					
+					SELECT
+						A.INDI_ID,
+						A.DISTRICT_CD,
+						A.INDI_VAL,
+						A.INDI_SPACE,
+						B.SECTOR_ID
+					FROM
+						(
+						SELECT
+							D.INDI_ID,
+							E.DISTRICT_CD,
+							D.INDI_VAL,
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) AS INDI_SPACE
+						FROM
+							(SELECT A.INDI_ID, A.DISTRICT_CD, A.INDI_VAL, A.INDI_YEAR
+							FROM INDICATOR_DATA A, 
+							(SELECT INDI_ID, MAX(INDI_YEAR)AS INDI_YEAR FROM INDICATOR_DATA
+							GROUP BY INDI_ID) B
+							WHERE A.INDI_ID = B.INDI_ID
+								AND A.INDI_YEAR = B.INDI_YEAR) D,
+							(SELECT * FROM DISTRICT_EMD WHERE DISTRICT_CD LIKE #{district_info} || '%') E
+						WHERE
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) = 'SPA02'
+							AND
+							LENGTH(D.DISTRICT_CD) <![CDATA[=]]> 5
+							AND
+							D.DISTRICT_CD LIKE #{district_info} || '%'
+						) A
+						
+					INNER JOIN
+						INDI_LIST_SET B
+					ON
+						A.INDI_ID = B.INDI_ID
+				
+					UNION
+				
+					SELECT
+						A.INDI_ID,
+						A.DISTRICT_CD,
+						A.INDI_VAL,
+						A.INDI_SPACE,
+						B.SECTOR_ID
+					FROM
+						(
+						SELECT
+							D.INDI_ID,
+							E.DISTRICT_CD,
+							D.INDI_VAL,
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) AS INDI_SPACE
+						FROM
+							(SELECT A.INDI_ID, A.DISTRICT_CD, A.INDI_VAL, A.INDI_YEAR
+							FROM INDICATOR_DATA A, 
+							(SELECT INDI_ID, MAX(INDI_YEAR)AS INDI_YEAR FROM INDICATOR_DATA
+							GROUP BY INDI_ID) B
+							WHERE A.INDI_ID = B.INDI_ID
+								AND A.INDI_YEAR = B.INDI_YEAR) D,
+							(SELECT * FROM DISTRICT_EMD WHERE DISTRICT_CD LIKE #{district_info} || '%') E
+						WHERE
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) = 'SPA03'
+							AND
+							LENGTH(D.DISTRICT_CD) <![CDATA[=]]> 2
+							AND
+							D.DISTRICT_CD LIKE SUBSTRING(#{district_info}, 1, 2) || '%'
+						) A
+						
+					INNER JOIN
+						INDI_LIST_SET B
+					ON
+						A.INDI_ID = B.INDI_ID
+				</when>
+				<otherwise>
+					SELECT
+						A.INDI_ID,
+						A.DISTRICT_CD,
+						A.INDI_VAL,
+						A.INDI_SPACE,
+						B.SECTOR_ID
+					FROM
+						(
+						SELECT
+							*,
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) AS INDI_SPACE
+						FROM
+							(SELECT A.INDI_ID, A.DISTRICT_CD, A.INDI_VAL, A.INDI_YEAR
+							FROM INDICATOR_DATA A, 
+							(SELECT INDI_ID, MAX(INDI_YEAR)AS INDI_YEAR FROM INDICATOR_DATA
+							GROUP BY INDI_ID) B
+							WHERE A.INDI_ID = B.INDI_ID
+								AND A.INDI_YEAR = B.INDI_YEAR) D
+						WHERE
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) = 'SPA01'
+							AND
+							LENGTH(DISTRICT_CD) <![CDATA[=]]> 5
+							AND
+							DISTRICT_CD LIKE #{district_info} || '%'
+						) A
+						
+					INNER JOIN
+						INDI_LIST_SET B
+					ON
+						A.INDI_ID = B.INDI_ID
+				
+					UNION
+					
+					SELECT
+						A.INDI_ID,
+						A.DISTRICT_CD,
+						A.INDI_VAL,
+						A.INDI_SPACE,
+						B.SECTOR_ID
+					FROM
+						(
+						SELECT
+							*,
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) AS INDI_SPACE
+						FROM
+							(SELECT A.INDI_ID, A.DISTRICT_CD, A.INDI_VAL, A.INDI_YEAR
+							FROM INDICATOR_DATA A, 
+							(SELECT INDI_ID, MAX(INDI_YEAR)AS INDI_YEAR FROM INDICATOR_DATA
+							GROUP BY INDI_ID) B
+							WHERE A.INDI_ID = B.INDI_ID
+								AND A.INDI_YEAR = B.INDI_YEAR) D
+						WHERE
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) = 'SPA02'
+							AND
+							LENGTH(D.DISTRICT_CD) <![CDATA[=]]> 5
+							AND
+							D.DISTRICT_CD LIKE #{district_info} || '%'
+						) A
+						
+					INNER JOIN
+						INDI_LIST_SET B
+					ON
+						A.INDI_ID = B.INDI_ID
+				
+					UNION
+				
+					SELECT
+						A.INDI_ID,
+						A.DISTRICT_CD,
+						A.INDI_VAL,
+						A.INDI_SPACE,
+						B.SECTOR_ID
+					FROM
+						(
+						SELECT
+							D.INDI_ID,
+							E.DISTRICT_CD,
+							D.INDI_VAL,
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) AS INDI_SPACE
+						FROM
+							(SELECT A.INDI_ID, A.DISTRICT_CD, A.INDI_VAL, A.INDI_YEAR
+							FROM INDICATOR_DATA A, 
+							(SELECT INDI_ID, MAX(INDI_YEAR)AS INDI_YEAR FROM INDICATOR_DATA
+							GROUP BY INDI_ID) B
+							WHERE A.INDI_ID = B.INDI_ID
+								AND A.INDI_YEAR = B.INDI_YEAR) D,
+							(SELECT * FROM DISTRICT_SGG WHERE DISTRICT_CD LIKE #{district_info} || '%') E
+						WHERE
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) = 'SPA03'
+							AND
+							LENGTH(D.DISTRICT_CD) <![CDATA[=]]> 2
+							AND
+							D.DISTRICT_CD LIKE SUBSTRING(#{district_info}, 1, 2) || '%'
+						) A
+						
+					INNER JOIN
+						INDI_LIST_SET B
+					ON
+						A.INDI_ID = B.INDI_ID
+				</otherwise>
+			</choose>
+		),
+		
+		INDI_SYTM_VAL_SET AS(
+			SELECT
+				INDI_ID,
+				DISTRICT_CD,
+				CASE
+					WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = B.INDI_ID)
+					ELSE INDI_VAL
+				END AS INDI_VAL,
+				INDI_SPACE,
+				SECTOR_ID
+			FROM
+				(
+				SELECT
+					INDI_ID,
+					DISTRICT_CD,
+					CASE
+						WHEN INDI_VAL IS NULL 
+						<choose>
+							<when test="tableCategory eq 'sgg'.toString()">
+								THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = #{district_info} 
+								AND INDI_ID = A.INDI_ID 
+								AND INDI_YEAR  = (SELECT MAX(INDI_YEAR) 
+								FROM INDICATOR_DATA 
+								WHERE DISTRICT_CD = #{district_info} AND INDI_ID = A.INDI_ID))
+							</when>
+							<when test="tableCategory eq 'emd'.toString()">
+								THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = #{district_info} || '0' 
+								AND INDI_ID = A.INDI_ID 
+								AND INDI_YEAR  = (SELECT MAX(INDI_YEAR) 
+								FROM INDICATOR_DATA 
+								WHERE DISTRICT_CD = #{district_info} || '0' AND INDI_ID = A.INDI_ID))
+							</when>
+							<otherwise>
+								THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = #{district_info} 
+								AND INDI_ID = A.INDI_ID 
+								AND INDI_YEAR  = (SELECT MAX(INDI_YEAR) 
+								FROM INDICATOR_DATA 
+								WHERE DISTRICT_CD = #{district_info} AND INDI_ID = A.INDI_ID))
+							</otherwise>
+						</choose>
+						ELSE INDI_VAL
+					END AS INDI_VAL,
+					INDI_SPACE,
+					SECTOR_ID
+				FROM
+					INDI_SYTM_DATA_SET A
+				) B
+		),
+		
+		<!-- ====================================================================================================================
+		03-3-1. [ SCEN_SYTM_DATA_SET ]: 시스템 시나리오(지표) 정보에 부문 추가
+		==================================================================================================================== -->
+		
+		SCEN_SYTM_DATA_SET AS(
+			SELECT
+				A.SCEN_ID AS INDI_ID,
+				A.DISTRICT_CD AS DISTRICT_CD,
+				A.SCEN_VAL AS INDI_VAL,
+				B.SECTOR_ID
+			FROM
+				(
+				SELECT
+					*
+				FROM
+					SCENARIO_DATA
+				WHERE
+					DISTRICT_CD LIKE #{district_info} || '%'
+					AND
+					SCEN_YEAR = #{scen_year}
+					AND
+					SCEN_SECTION = #{scen_section}
+					AND
+					MDL_ID = #{mdl_id}
+				) A
+			INNER JOIN
+				INDI_LIST_SET B
+			ON
+				A.SCEN_ID = B.INDI_ID
+		),
+		
+		<!-- ====================================================================================================================
+		03-3-2. [ SCEN_SYTM_DATA_RESULT_SET ]: 시스템 시나리오(지표) 정보 가공(광역 사용자의 경우 읍/면/동 형태의 데이터를 합친다.)
+		==================================================================================================================== -->
+		
+		SCEN_SYTM_DATA_RESULT_SET AS(
+			SELECT
+				*
+			FROM
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				
+				SCEN_SYTM_DATA_SET
+				
+				</when>
+				<otherwise>
+				
+				(
+				SELECT
+					INDI_ID,
+					DISTRICT_CD,
+					SECTOR_ID,
+					AVG(INDI_VAL) AS INDI_VAL
+				FROM
+					(
+					SELECT
+						INDI_ID,
+						SUBSTRING(DISTRICT_CD, 1, 5) AS DISTRICT_CD,
+						SECTOR_ID,
+						INDI_VAL
+					FROM
+						SCEN_SYTM_DATA_SET
+					) B
+				GROUP BY
+					INDI_ID, DISTRICT_CD, SECTOR_ID
+				) A
+				
+				</otherwise>
+			</choose>
+		),
+		
+		<!-- ====================================================================================================================
+		04. [ INDI_UNION_DATA_SET ]: 사용자 지표 정보, 시스템 지표, 시스템 시나리오(지표) 를 합친다.
+		==================================================================================================================== -->
+		
+		INDI_UNION_DATA_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT INDI_ID, DISTRICT_CD, SECTOR_ID, INDI_VAL FROM INDI_USER_DATA_SET
+				UNION
+				SELECT INDI_ID, DISTRICT_CD, SECTOR_ID, INDI_VAL FROM INDI_SYTM_VAL_SET
+				UNION
+				SELECT INDI_ID, DISTRICT_CD, SECTOR_ID, INDI_VAL FROM SCEN_SYTM_DATA_RESULT_SET
+				) A
+		),
+		
+		<!-- ====================================================================================================================
+		05. [ INDI_REF_VALUE_SET ]: 각 지표의 최대값, 최소값을 구한다.
+		==================================================================================================================== -->
+		
+		INDI_REF_VALUE_SET AS(
+			SELECT
+				INDI_ID,
+				MAX(INDI_VAL) AS MAX_VAL,
+				MIN(INDI_VAL) AS MIN_VAL
+			FROM
+				INDI_UNION_DATA_SET
+			GROUP BY
+				INDI_ID
+		),
+		
+		<!-- ====================================================================================================================
+		06. [ INDI_STD_VALUE_SET ]: 각 지표별 최대값 최소값을 이용하여 지표값 표준화
+		==================================================================================================================== -->
+		
+		INDI_STD_VALUE_SET AS(
+			SELECT
+				A.*,
+				CASE
+					WHEN B.MAX_VAL - B.MIN_VAL = 0 THEN 0
+					WHEN B.MAX_VAL - B.MIN_VAL != 0 THEN ((A.INDI_VAL - B.MIN_VAL) / (B.MAX_VAL - B.MIN_VAL))
+				END AS INDI_STD_VAL
+			FROM
+				INDI_UNION_DATA_SET A,
+				INDI_REF_VALUE_SET B
+			WHERE
+				A.INDI_ID = B.INDI_ID
+		),
+		
+		<!-- ====================================================================================================================
+		07. [ INDI_WEI_VALUE_SET ]: 표준화 된 지표값 X 지표 가중치
+		==================================================================================================================== -->
+		
+		INDI_WEI_VALUE_SET AS(
+			SELECT
+				A.*,
+				(A.INDI_STD_VAL * B.INDI_VAL_WEIGHT) AS INDI_WEI_VAL
+			FROM
+				INDI_STD_VALUE_SET A,
+				INDI_LIST_SET B
+			WHERE
+				A.INDI_ID = B.INDI_ID
+				AND
+				A.SECTOR_ID = B.SECTOR_ID
+		),
+		
+		<!-- ====================================================================================================================
+		08. [ INDI_SUM_VALUE_SET ]: 부문별로 같은 행정구역의 합을 구한다.(지표별로 같은 행정구역의 지표값을 더한다)
+		==================================================================================================================== -->
+		
+		INDI_SUM_VALUE_SET AS(
+			SELECT
+				DISTRICT_CD,
+				SECTOR_ID,
+				SUM(INDI_WEI_VAL) AS INDI_SUM_VAL
+			FROM
+				INDI_WEI_VALUE_SET
+			GROUP BY
+				DISTRICT_CD, SECTOR_ID
+		),
+		
+		<!-- ====================================================================================================================
+		09. [ ITEM_WEI_VALUE_SET ]: 부문별 각각의 행정구역 별 값 X 부문 가중치
+		==================================================================================================================== -->
+		
+		ITEM_WEI_VALUE_SET AS(
+			SELECT
+				A.*,
+				CASE
+					WHEN A.SECTOR_ID = 'SEC01' THEN (A.INDI_SUM_VAL * B.CE_WEIGHT)
+					WHEN A.SECTOR_ID = 'SEC02' THEN (A.INDI_SUM_VAL * B.CS_WEIGHT)
+					WHEN A.SECTOR_ID = 'SEC03' THEN (A.INDI_SUM_VAL * B.AA_WEIGHT)
+				END
+				AS CI_VAL
+			FROM
+				INDI_SUM_VALUE_SET A,
+				ITEM_LIST_SET B
+		),
+		
+		<!-- ====================================================================================================================
+		10. [ DISTRICT_NM_SET ]: 행정구역 명칭 가져오기
+		==================================================================================================================== -->
+		
+		DISTRICT_NM_SET AS(
+			SELECT
+				DISTRICT_CD,
+				DISTRICT_NM
+			FROM
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				
+				DISTRICT_EMD
+				
+				</when>
+				<otherwise>
+				
+				DISTRICT_SGG
+				
+				</otherwise>
+			</choose>
+		),
+		
+		<!-- ====================================================================================================================
+		11. [ DISTRICT_VALUE_SET ]: 결과 값과 행정구역 명칭 합치기
+		==================================================================================================================== -->
+		DISTRICT_VALUE_SET AS(
+			SELECT
+				A.DISTRICT_CD,
+				B.DISTRICT_NM,
+				A.SECTOR_ID,
+				A.CI_VAL
+			FROM
+				ITEM_WEI_VALUE_SET A
+			INNER JOIN
+				DISTRICT_NM_SET B
+			ON
+				A.DISTRICT_CD = B.DISTRICT_CD
+		),
+		
+		<!-- ====================================================================================================================
+		12. [ ESTIMATION_VALUE_SET ]: 부문별 값 구분
+		==================================================================================================================== -->
+		
+		ESTIMATION_VALUE_SET AS(
+			SELECT
+				DISTRICT_CD,
+				DISTRICT_NM,
+				CASE
+					WHEN SECTOR_ID = 'SEC01' THEN CI_VAL
+					ELSE 0
+				END AS CE_VAL,
+				CASE
+					WHEN SECTOR_ID = 'SEC02' THEN CI_VAL
+					ELSE 0
+				END AS CS_VAL,
+				CASE
+					WHEN SECTOR_ID = 'SEC03' THEN CI_VAL
+					ELSE 0
+				END AS AA_VAL
+			FROM
+				DISTRICT_VALUE_SET
+		),
+		
+		<!-- ====================================================================================================================
+		13. [ ESTIMATION_SUM_SET ]: 부문별 값의 합
+		==================================================================================================================== -->
+		
+		ESTIMATION_SUM_SET AS(
+			SELECT
+				DISTRICT_CD,
+				DISTRICT_NM,
+				SUM(CE_VAL) AS CE_VAL,
+				SUM(CS_VAL) AS CS_VAL,
+				SUM(AA_VAL) AS AA_VAL
+			FROM
+				ESTIMATION_VALUE_SET
+			GROUP BY
+				DISTRICT_CD, DISTRICT_NM
+		),
+		
+		<!-- ====================================================================================================================
+		14. [ ESTIMATION_TOTAL_SET ]: 취약성 종합 지수
+		==================================================================================================================== -->
+		
+		ESTIMATION_TOTAL_SET AS(
+			SELECT
+				*,
+				(CE_VAL + CS_VAL - AA_VAL) AS CI_VAL
+			FROM
+				ESTIMATION_SUM_SET
+		)
+		
+		<!-- ====================================================================================================================
+		15. 결과 출력
+		==================================================================================================================== -->
+		
+		SELECT
+			ROW_NUMBER() OVER(ORDER BY CI_VAL ASC, DISTRICT_CD ASC) AS RNUM,
+			DISTRICT_CD,
+			DISTRICT_NM,
+			TRUNC(CE_VAL, 2) AS CE_VAL,
+			TRUNC(CS_VAL, 2) AS CS_VAL,
+			TRUNC(AA_VAL, 2) AS AA_VAL,
+			TRUNC(CI_VAL, 2) AS CI_VAL
+		FROM
+			ESTIMATION_TOTAL_SET
+		<!-- 
+		<choose>
+			<when test="download == null">
+				SELECT
+					*
+				FROM
+					(
+					SELECT
+						ROW_NUMBER() OVER(ORDER BY CI_VAL DESC, DISTRICT_CD ASC) AS RNUM,
+						DISTRICT_CD,
+						DISTRICT_NM,
+						TRUNC(CE_VAL, 2) AS CE_VAL,
+						TRUNC(CS_VAL, 2) AS CS_VAL,
+						TRUNC(AA_VAL, 2) AS AA_VAL,
+						TRUNC(CI_VAL, 2) AS CI_VAL
+					FROM
+						ESTIMATION_TOTAL_SET
+					LIMIT #{endRow}
+					) A
+				OFFSET #{startRow}
+			</when>
+			<otherwise>
+				SELECT
+					ROW_NUMBER() OVER(ORDER BY CI_VAL DESC, DISTRICT_CD ASC) AS RNUM,
+					DISTRICT_CD,
+					DISTRICT_NM,
+					TRUNC(CE_VAL, 2) AS CE_VAL,
+					TRUNC(CS_VAL, 2) AS CS_VAL,
+					TRUNC(AA_VAL, 2) AS AA_VAL,
+					TRUNC(CI_VAL, 2) AS CI_VAL
+				FROM
+					ESTIMATION_TOTAL_SET
+			</otherwise>
+		</choose>
+		 -->
+		
+	</select>
+	
+	
+	
+	
+	
+	
+	
+	<select id="vulAssessmentTotCnt" parameterType="map" resultType="int">
+		
+		<!-- ====================================================================================================================
+		01. [ ITEM_LIST_SET ]: 항목 정보
+		==================================================================================================================== -->
+		
+		WITH ITEM_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				ITEM_LIST_USER
+			WHERE
+				ITEM_ID = #{item_id}
+				AND
+				USER_ID = #{userName}
+		),
+		
+		<!-- ====================================================================================================================
+		02. [ INDI_LIST_SET ]: 항목 내 지표 정보
+		==================================================================================================================== -->
+
+		INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				ITEM_INDICATOR_USER
+			WHERE
+				ITEM_ID = (SELECT ITEM_ID FROM ITEM_LIST_USER WHERE ITEM_ID = #{item_id} AND USER_ID = #{userName})
+		),
+		
+		<!-- ====================================================================================================================
+		03-1. [ INDI_USER_DATA_SET ]: 사용자 지표 정보에 부문 추가
+		==================================================================================================================== -->
+		INDI_USER_DATA_SET AS(
+			SELECT
+				A.INDI_ID,
+				A.DISTRICT_CD,
+				A.INDI_VAL,
+				B.SECTOR_ID
+			FROM
+				INDICATOR_DATA_USER A
+			INNER JOIN
+				INDI_LIST_SET B
+			ON
+				A.INDI_ID = B.INDI_ID
+		),
+		
+		<!-- ====================================================================================================================
+		03-2-1. [ INDI_SYTM_DATA_SET ]: 시스템 지표 정보에 부문 추가
+		==================================================================================================================== -->
+		
+		INDI_SYTM_DATA_SET AS(
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+					SELECT
+						A.INDI_ID,
+						A.DISTRICT_CD,
+						A.INDI_VAL,
+						A.INDI_SPACE,
+						B.SECTOR_ID
+					FROM
+						(
+						SELECT
+							*,
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) AS INDI_SPACE
+						FROM
+							(SELECT A.INDI_ID, A.DISTRICT_CD, A.INDI_VAL, A.INDI_YEAR
+							FROM INDICATOR_DATA A, 
+							(SELECT INDI_ID, MAX(INDI_YEAR)AS INDI_YEAR FROM INDICATOR_DATA
+							GROUP BY INDI_ID) B
+							WHERE A.INDI_ID = B.INDI_ID
+								AND A.INDI_YEAR = B.INDI_YEAR) D
+						WHERE
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) = 'SPA01'
+							AND
+							LENGTH(DISTRICT_CD) <![CDATA[=]]> 7
+							AND
+							DISTRICT_CD LIKE #{district_info} || '%'
+						) A
+						
+					INNER JOIN
+						INDI_LIST_SET B
+					ON
+						A.INDI_ID = B.INDI_ID
+				
+					UNION
+					
+					SELECT
+						A.INDI_ID,
+						A.DISTRICT_CD,
+						A.INDI_VAL,
+						A.INDI_SPACE,
+						B.SECTOR_ID
+					FROM
+						(
+						SELECT
+							D.INDI_ID,
+							E.DISTRICT_CD,
+							D.INDI_VAL,
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) AS INDI_SPACE
+						FROM
+							(SELECT A.INDI_ID, A.DISTRICT_CD, A.INDI_VAL, A.INDI_YEAR
+							FROM INDICATOR_DATA A, 
+							(SELECT INDI_ID, MAX(INDI_YEAR)AS INDI_YEAR FROM INDICATOR_DATA
+							GROUP BY INDI_ID) B
+							WHERE A.INDI_ID = B.INDI_ID
+								AND A.INDI_YEAR = B.INDI_YEAR) D,
+							(SELECT * FROM DISTRICT_EMD WHERE DISTRICT_CD LIKE #{district_info} || '%') E
+						WHERE
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) = 'SPA02'
+							AND
+							LENGTH(D.DISTRICT_CD) <![CDATA[=]]> 5
+							AND
+							D.DISTRICT_CD LIKE #{district_info} || '%'
+						) A
+						
+					INNER JOIN
+						INDI_LIST_SET B
+					ON
+						A.INDI_ID = B.INDI_ID
+				
+					UNION
+				
+					SELECT
+						A.INDI_ID,
+						A.DISTRICT_CD,
+						A.INDI_VAL,
+						A.INDI_SPACE,
+						B.SECTOR_ID
+					FROM
+						(
+						SELECT
+							D.INDI_ID,
+							E.DISTRICT_CD,
+							D.INDI_VAL,
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) AS INDI_SPACE
+						FROM
+							(SELECT A.INDI_ID, A.DISTRICT_CD, A.INDI_VAL, A.INDI_YEAR
+							FROM INDICATOR_DATA A, 
+							(SELECT INDI_ID, MAX(INDI_YEAR)AS INDI_YEAR FROM INDICATOR_DATA
+							GROUP BY INDI_ID) B
+							WHERE A.INDI_ID = B.INDI_ID
+								AND A.INDI_YEAR = B.INDI_YEAR) D,
+							(SELECT * FROM DISTRICT_EMD WHERE DISTRICT_CD LIKE #{district_info} || '%') E
+						WHERE
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) = 'SPA03'
+							AND
+							LENGTH(D.DISTRICT_CD) <![CDATA[=]]> 2
+							AND
+							D.DISTRICT_CD LIKE SUBSTRING(#{district_info}, 1, 2) || '%'
+						) A
+						
+					INNER JOIN
+						INDI_LIST_SET B
+					ON
+						A.INDI_ID = B.INDI_ID
+				</when>
+				<otherwise>
+					SELECT
+						A.INDI_ID,
+						A.DISTRICT_CD,
+						A.INDI_VAL,
+						A.INDI_SPACE,
+						B.SECTOR_ID
+					FROM
+						(
+						SELECT
+							*,
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) AS INDI_SPACE
+						FROM
+							(SELECT A.INDI_ID, A.DISTRICT_CD, A.INDI_VAL, A.INDI_YEAR
+							FROM INDICATOR_DATA A, 
+							(SELECT INDI_ID, MAX(INDI_YEAR)AS INDI_YEAR FROM INDICATOR_DATA
+							GROUP BY INDI_ID) B
+							WHERE A.INDI_ID = B.INDI_ID
+								AND A.INDI_YEAR = B.INDI_YEAR) D
+						WHERE
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) = 'SPA01'
+							AND
+							LENGTH(DISTRICT_CD) <![CDATA[=]]> 5
+							AND
+							DISTRICT_CD LIKE #{district_info} || '%'
+						) A
+						
+					INNER JOIN
+						INDI_LIST_SET B
+					ON
+						A.INDI_ID = B.INDI_ID
+				
+					UNION
+					
+					SELECT
+						A.INDI_ID,
+						A.DISTRICT_CD,
+						A.INDI_VAL,
+						A.INDI_SPACE,
+						B.SECTOR_ID
+					FROM
+						(
+						SELECT
+							*,
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) AS INDI_SPACE
+						FROM
+							(SELECT A.INDI_ID, A.DISTRICT_CD, A.INDI_VAL, A.INDI_YEAR
+							FROM INDICATOR_DATA A, 
+							(SELECT INDI_ID, MAX(INDI_YEAR)AS INDI_YEAR FROM INDICATOR_DATA
+							GROUP BY INDI_ID) B
+							WHERE A.INDI_ID = B.INDI_ID
+								AND A.INDI_YEAR = B.INDI_YEAR) D
+						WHERE
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) = 'SPA02'
+							AND
+							LENGTH(D.DISTRICT_CD) <![CDATA[=]]> 5
+							AND
+							D.DISTRICT_CD LIKE #{district_info} || '%'
+						) A
+						
+					INNER JOIN
+						INDI_LIST_SET B
+					ON
+						A.INDI_ID = B.INDI_ID
+				
+					UNION
+				
+					SELECT
+						A.INDI_ID,
+						A.DISTRICT_CD,
+						A.INDI_VAL,
+						A.INDI_SPACE,
+						B.SECTOR_ID
+					FROM
+						(
+						SELECT
+							D.INDI_ID,
+							E.DISTRICT_CD,
+							D.INDI_VAL,
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) AS INDI_SPACE
+						FROM
+							(SELECT A.INDI_ID, A.DISTRICT_CD, A.INDI_VAL, A.INDI_YEAR
+							FROM INDICATOR_DATA A, 
+							(SELECT INDI_ID, MAX(INDI_YEAR)AS INDI_YEAR FROM INDICATOR_DATA
+							GROUP BY INDI_ID) B
+							WHERE A.INDI_ID = B.INDI_ID
+								AND A.INDI_YEAR = B.INDI_YEAR) D,
+							(SELECT * FROM DISTRICT_SGG WHERE DISTRICT_CD LIKE #{district_info} || '%') E
+						WHERE
+							(SELECT INDI_SPACE FROM INDICATOR_LIST WHERE INDI_ID = D.INDI_ID) = 'SPA03'
+							AND
+							LENGTH(D.DISTRICT_CD) <![CDATA[=]]> 2
+							AND
+							D.DISTRICT_CD LIKE SUBSTRING(#{district_info}, 1, 2) || '%'
+						) A
+						
+					INNER JOIN
+						INDI_LIST_SET B
+					ON
+						A.INDI_ID = B.INDI_ID
+				</otherwise>
+			</choose>
+		),
+		
+		INDI_SYTM_VAL_SET AS(
+			SELECT
+				INDI_ID,
+				DISTRICT_CD,
+				CASE
+					WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = B.INDI_ID)
+					ELSE INDI_VAL
+				END AS INDI_VAL,
+				INDI_SPACE,
+				SECTOR_ID
+			FROM
+				(
+				SELECT
+					INDI_ID,
+					DISTRICT_CD,
+					CASE
+						WHEN INDI_VAL IS NULL 
+						<choose>
+							<when test="tableCategory eq 'sgg'.toString()">
+								THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = #{district_info} 
+								AND INDI_ID = A.INDI_ID 
+								AND INDI_YEAR  = (SELECT MAX(INDI_YEAR) 
+								FROM INDICATOR_DATA 
+								WHERE DISTRICT_CD = #{district_info} AND INDI_ID = A.INDI_ID))
+							</when>
+							<when test="tableCategory eq 'emd'.toString()">
+								THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = #{district_info} || '0' 
+								AND INDI_ID = A.INDI_ID 
+								AND INDI_YEAR  = (SELECT MAX(INDI_YEAR) 
+								FROM INDICATOR_DATA 
+								WHERE DISTRICT_CD = #{district_info} || '0' AND INDI_ID = A.INDI_ID))
+							</when>
+							<otherwise>
+								THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = #{district_info} || '0' 
+								AND INDI_ID = A.INDI_ID 
+								AND INDI_YEAR  = (SELECT MAX(INDI_YEAR) 
+								FROM INDICATOR_DATA 
+								WHERE DISTRICT_CD = #{district_info} || '0' AND INDI_ID = A.INDI_ID))
+							</otherwise>
+						</choose>
+						ELSE INDI_VAL
+					END AS INDI_VAL,
+					INDI_SPACE,
+					SECTOR_ID
+				FROM
+					INDI_SYTM_DATA_SET A
+				) B
+		),
+		
+		<!-- ====================================================================================================================
+		03-3-1. [ SCEN_SYTM_DATA_SET ]: 시스템 시나리오(지표) 정보에 부문 추가
+		==================================================================================================================== -->
+		
+		SCEN_SYTM_DATA_SET AS(
+			SELECT
+				A.SCEN_ID AS INDI_ID,
+				A.DISTRICT_CD AS DISTRICT_CD,
+				A.SCEN_VAL AS INDI_VAL,
+				B.SECTOR_ID
+			FROM
+				(
+				SELECT
+					*
+				FROM
+					SCENARIO_DATA
+				WHERE
+					DISTRICT_CD LIKE #{district_info} || '%'
+					AND
+					SCEN_YEAR = #{scen_year}
+					AND
+					SCEN_SECTION = #{scen_section}
+					AND
+					MDL_ID = #{mdl_id}
+				) A
+			INNER JOIN
+				INDI_LIST_SET B
+			ON
+				A.SCEN_ID = B.INDI_ID
+		),
+		
+		<!-- ====================================================================================================================
+		03-3-2. [ SCEN_SYTM_DATA_RESULT_SET ]: 시스템 시나리오(지표) 정보 가공(광역 사용자의 경우 읍/면/동 형태의 데이터를 합친다.)
+		==================================================================================================================== -->
+		
+		SCEN_SYTM_DATA_RESULT_SET AS(
+			SELECT
+				*
+			FROM
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				
+				SCEN_SYTM_DATA_SET
+				
+				</when>
+				<otherwise>
+				
+				(
+				SELECT
+					INDI_ID,
+					DISTRICT_CD,
+					SECTOR_ID,
+					AVG(INDI_VAL) AS INDI_VAL
+				FROM
+					(
+					SELECT
+						INDI_ID,
+						SUBSTRING(DISTRICT_CD, 1, 5) AS DISTRICT_CD,
+						SECTOR_ID,
+						INDI_VAL
+					FROM
+						SCEN_SYTM_DATA_SET
+					) B
+				GROUP BY
+					INDI_ID, DISTRICT_CD, SECTOR_ID
+				) A
+				
+				</otherwise>
+			</choose>
+		),
+		
+		<!-- ====================================================================================================================
+		04. [ INDI_UNION_DATA_SET ]: 사용자 지표 정보, 시스템 지표, 시스템 시나리오(지표) 를 합친다.
+		==================================================================================================================== -->
+		
+		INDI_UNION_DATA_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT INDI_ID, DISTRICT_CD, SECTOR_ID, INDI_VAL FROM INDI_USER_DATA_SET
+				UNION
+				SELECT INDI_ID, DISTRICT_CD, SECTOR_ID, INDI_VAL FROM INDI_SYTM_VAL_SET
+				UNION
+				SELECT INDI_ID, DISTRICT_CD, SECTOR_ID, INDI_VAL FROM SCEN_SYTM_DATA_RESULT_SET
+				) A
+		),
+		
+		<!-- ====================================================================================================================
+		05. [ INDI_REF_VALUE_SET ]: 각 지표의 최대값, 최소값을 구한다.
+		==================================================================================================================== -->
+		
+		INDI_REF_VALUE_SET AS(
+			SELECT
+				INDI_ID,
+				MAX(INDI_VAL) AS MAX_VAL,
+				MIN(INDI_VAL) AS MIN_VAL
+			FROM
+				INDI_UNION_DATA_SET
+			GROUP BY
+				INDI_ID
+		),
+		
+		<!-- ====================================================================================================================
+		06. [ INDI_STD_VALUE_SET ]: 각 지표별 최대값 최소값을 이용하여 지표값 표준화
+		==================================================================================================================== -->
+		
+		INDI_STD_VALUE_SET AS(
+			SELECT
+				A.*,
+				CASE
+					WHEN B.MAX_VAL - B.MIN_VAL = 0 THEN 0
+					WHEN B.MAX_VAL - B.MIN_VAL != 0 THEN ((A.INDI_VAL - B.MIN_VAL) / (B.MAX_VAL - B.MIN_VAL))
+				END AS INDI_STD_VAL
+			FROM
+				INDI_UNION_DATA_SET A,
+				INDI_REF_VALUE_SET B
+			WHERE
+				A.INDI_ID = B.INDI_ID
+		),
+		
+		<!-- ====================================================================================================================
+		07. [ INDI_WEI_VALUE_SET ]: 표준화 된 지표값 X 지표 가중치
+		==================================================================================================================== -->
+		
+		INDI_WEI_VALUE_SET AS(
+			SELECT
+				A.*,
+				(A.INDI_STD_VAL * B.INDI_VAL_WEIGHT) AS INDI_WEI_VAL
+			FROM
+				INDI_STD_VALUE_SET A,
+				INDI_LIST_SET B
+			WHERE
+				A.INDI_ID = B.INDI_ID
+				AND
+				A.SECTOR_ID = B.SECTOR_ID
+		),
+		
+		<!-- ====================================================================================================================
+		08. [ INDI_SUM_VALUE_SET ]: 부문별로 같은 행정구역의 합을 구한다.(지표별로 같은 행정구역의 지표값을 더한다)
+		==================================================================================================================== -->
+		
+		INDI_SUM_VALUE_SET AS(
+			SELECT
+				DISTRICT_CD,
+				SECTOR_ID,
+				SUM(INDI_WEI_VAL) AS INDI_SUM_VAL
+			FROM
+				INDI_WEI_VALUE_SET
+			GROUP BY
+				DISTRICT_CD, SECTOR_ID
+		),
+		
+		<!-- ====================================================================================================================
+		09. [ ITEM_WEI_VALUE_SET ]: 부문별 각각의 행정구역 별 값 X 부문 가중치
+		==================================================================================================================== -->
+		
+		ITEM_WEI_VALUE_SET AS(
+			SELECT
+				A.*,
+				CASE
+					WHEN A.SECTOR_ID = 'SEC01' THEN (A.INDI_SUM_VAL * B.CE_WEIGHT)
+					WHEN A.SECTOR_ID = 'SEC02' THEN (A.INDI_SUM_VAL * B.CS_WEIGHT)
+					WHEN A.SECTOR_ID = 'SEC03' THEN (A.INDI_SUM_VAL * B.AA_WEIGHT)
+				END
+				AS CI_VAL
+			FROM
+				INDI_SUM_VALUE_SET A,
+				ITEM_LIST_SET B
+		),
+		
+		<!-- ====================================================================================================================
+		10. [ DISTRICT_NM_SET ]: 행정구역 명칭 가져오기
+		==================================================================================================================== -->
+		
+		DISTRICT_NM_SET AS(
+			SELECT
+				DISTRICT_CD,
+				DISTRICT_NM
+			FROM
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				
+				DISTRICT_EMD
+				
+				</when>
+				<otherwise>
+				
+				DISTRICT_SGG
+				
+				</otherwise>
+			</choose>
+		),
+		
+		<!-- ====================================================================================================================
+		11. [ DISTRICT_VALUE_SET ]: 결과 값과 행정구역 명칭 합치기
+		==================================================================================================================== -->
+		DISTRICT_VALUE_SET AS(
+			SELECT
+				A.DISTRICT_CD,
+				B.DISTRICT_NM,
+				A.SECTOR_ID,
+				A.CI_VAL
+			FROM
+				ITEM_WEI_VALUE_SET A
+			INNER JOIN
+				DISTRICT_NM_SET B
+			ON
+				A.DISTRICT_CD = B.DISTRICT_CD
+		),
+		
+		<!-- ====================================================================================================================
+		12. [ ESTIMATION_VALUE_SET ]: 부문별 값 구분
+		==================================================================================================================== -->
+		
+		ESTIMATION_VALUE_SET AS(
+			SELECT
+				DISTRICT_CD,
+				DISTRICT_NM,
+				CASE
+					WHEN SECTOR_ID = 'SEC01' THEN CI_VAL
+					ELSE 0
+				END AS CE_VAL,
+				CASE
+					WHEN SECTOR_ID = 'SEC02' THEN CI_VAL
+					ELSE 0
+				END AS CS_VAL,
+				CASE
+					WHEN SECTOR_ID = 'SEC03' THEN CI_VAL
+					ELSE 0
+				END AS AA_VAL
+			FROM
+				DISTRICT_VALUE_SET
+		),
+		
+		<!-- ====================================================================================================================
+		13. [ ESTIMATION_SUM_SET ]: 부문별 값의 합
+		==================================================================================================================== -->
+		
+		ESTIMATION_SUM_SET AS(
+			SELECT
+				DISTRICT_CD,
+				DISTRICT_NM,
+				SUM(CE_VAL) AS CE_VAL,
+				SUM(CS_VAL) AS CS_VAL,
+				SUM(AA_VAL) AS AA_VAL
+			FROM
+				ESTIMATION_VALUE_SET
+			GROUP BY
+				DISTRICT_CD, DISTRICT_NM
+		),
+		
+		<!-- ====================================================================================================================
+		14. [ ESTIMATION_TOTAL_SET ]: 취약성 종합 지수
+		==================================================================================================================== -->
+		
+		ESTIMATION_TOTAL_SET AS(
+			SELECT
+				*,
+				(CE_VAL + CS_VAL - AA_VAL) AS CI_VAL
+			FROM
+				ESTIMATION_SUM_SET
+		)
+		
+		<!-- ====================================================================================================================
+		12. 결과 출력
+		==================================================================================================================== -->
+		
+		SELECT
+			COUNT(*)
+		FROM
+			ESTIMATION_TOTAL_SET
+	</select>
+	
+	<select id="getReferenceIndicator" parameterType="map" resultType="hashMap">
+		WITH ITEM_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				ITEM_LIST_USER
+			WHERE
+				ITEM_ID = #{item_id}
+				AND
+				USER_ID = #{userName}
+		),
+		
+		INDI_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				ITEM_INDICATOR_USER
+			WHERE
+				ITEM_ID = (SELECT ITEM_ID FROM ITEM_LIST_USER WHERE ITEM_ID = #{item_id} AND USER_ID = #{userName})
+				AND
+				SECTOR_ID = #{sector_id}
+		),
+	
+		INDI_USER_SET AS(
+			SELECT
+				A.*
+			FROM
+				(SELECT * FROM INDICATOR_LIST_USER WHERE USER_ID = #{userName}) A
+			INNER JOIN
+				INDI_LIST_SET B
+			ON
+				A.INDI_ID = B.INDI_ID
+		),
+		
+		INDI_SYTM_SET AS(
+			SELECT
+				A.*
+			FROM
+				INDICATOR_LIST A
+			INNER JOIN
+				INDI_LIST_SET B
+			ON
+				A.INDI_ID = B.INDI_ID
+		),
+		
+		SCEN_LIST_SET AS(
+			SELECT
+				*
+			FROM
+				SCENARIO_LIST
+			WHERE
+				SCEN_ID IN
+				(
+				SELECT
+					SCEN_ID
+				FROM
+					SCENARIO_DATA
+				WHERE
+					SCEN_YEAR = #{scen_year}
+					AND
+					SCEN_SECTION = #{scen_section}
+					AND
+					MDL_ID = #{mdl_id}
+				)
+		),
+		
+		SCEN_SYTM_SET AS(
+			SELECT
+				A.SCEN_ID AS INDI_ID,
+				A.SCEN_NM AS INDI_NM,
+				A.SCEN_CONSTRUCT AS INDI_CONSTRUCT
+			FROM
+				SCEN_LIST_SET A
+			INNER JOIN
+				INDI_LIST_SET B
+			ON
+				A.SCEN_ID = B.INDI_ID
+		),
+		
+		UNION_DATA_SET AS(
+			SELECT
+				*
+			FROM
+				(
+				SELECT INDI_ID, INDI_NM, INDI_CONSTRUCT FROM INDI_USER_SET
+				UNION
+				SELECT INDI_ID, INDI_NM, INDI_CONSTRUCT FROM INDI_SYTM_SET
+				UNION
+				SELECT INDI_ID, INDI_NM, INDI_CONSTRUCT FROM SCEN_SYTM_SET
+				) A
+		),
+		
+		SECTOR_DATA_SET AS(
+			SELECT
+				B.INDI_ID,
+				A.SECTOR_ID,
+				A.INDI_VAL_WEIGHT,
+				B.INDI_NM,
+				CASE
+					WHEN B.INDI_CONSTRUCT = 'VT001' THEN 'A'
+					WHEN B.INDI_CONSTRUCT = 'VT002' THEN 'B'
+					WHEN B.INDI_CONSTRUCT = 'VT003' THEN 'C'
+					WHEN B.INDI_CONSTRUCT = 'VT008' THEN 'A`'
+					WHEN B.INDI_CONSTRUCT = 'VT004' THEN 'B`'
+					WHEN B.INDI_CONSTRUCT = 'VT005' THEN 'C`'
+					WHEN B.INDI_CONSTRUCT = 'VT006' THEN 'D'
+					WHEN B.INDI_CONSTRUCT = 'VT007' THEN 'E'
+					ELSE 'F'
+				END AS INDI_CONSTRUCT
+			FROM
+				INDI_LIST_SET A
+			INNER JOIN
+				UNION_DATA_SET B
+			ON A.INDI_ID = B.INDI_ID
+		),
+		
+		SECTOR_NAME_SET AS(
+			SELECT
+				*,
+				(SELECT CODE_NM FROM REF_CODE WHERE SECTOR_ID = CODE_ID) AS SECTOR_NM
+			FROM
+				SECTOR_DATA_SET
+		)
+		
+		SELECT
+			*
+		FROM
+			SECTOR_NAME_SET
+			
+	</select>
+	
+	<select id="getIndicatorInfo" parameterType="map" resultType="hashMap">
+		WITH TABLE_DATA_SET AS(
+			SELECT
+				*
+			FROM
+				<choose>
+					<when test="refCategory eq 'IC'.toString()">
+					INDICATOR_LIST
+					</when>
+					<when test="refCategory eq 'IU'.toString()">
+					(
+					SELECT
+						*
+					FROM
+						INDICATOR_LIST_USER
+					WHERE
+						USER_ID = #{userName}
+					
+					) A
+					</when>
+					<when test="refCategory eq 'SC'.toString()">
+					(
+					SELECT
+						SCEN_ID AS INDI_ID,
+						SCEN_NM AS INDI_NM,
+						SCEN_UNIT AS INDI_UNIT,
+						SCEN_ACCOUNT AS INDI_ACCOUNT,
+						IPCC_LARGE,
+						IPCC_SMALL,
+						SCEN_CONSTRUCT AS INDI_CONSTRUCT,
+						SCEN_GROUP AS INDI_GROUP
+					FROM
+						SCENARIO_LIST
+					) A
+					</when>
+				</choose>
+			WHERE
+				INDI_ID = #{indi_id}
+		)
+		SELECT
+			*
+		FROM
+			TABLE_DATA_SET
+	</select>
+	
+	<select id="getIndicatorListInfo" parameterType="String" resultType="hashMap">
+		SELECT * FROM INDICATOR_LIST WHERE INDI_ID = #{_parameter}
+	</select>
+	
+	<select id="getReferenceIndicatorInfo" parameterType="map" resultType="hashMap">
+		
+		WITH TABLE_DATA_SET AS(
+			SELECT
+				*
+			FROM
+				<choose>
+					<when test="refCategory eq 'IC'.toString()">
+					(
+					SELECT
+						A.*,
+						B.INDI_SPACE
+					FROM
+						INDICATOR_DATA A
+					INNER JOIN
+						INDICATOR_LIST B
+					ON
+						A.INDI_ID = B.INDI_ID
+					) C
+					</when>
+					<when test="refCategory eq 'IU'.toString()">
+					INDICATOR_DATA_USER
+					</when>
+					<when test="refCategory eq 'SC'.toString()">
+					(
+					SELECT
+						SCEN_ID AS INDI_ID,
+						DISTRICT_CD,
+						SCEN_VAL AS INDI_VAL,
+						SCEN_YEAR,
+						SCEN_SECTION,
+						MDL_ID,
+						VALUE_YEAR AS INDI_YEAR
+					FROM
+						SCENARIO_DATA
+					WHERE
+						SCEN_YEAR = #{scen_year}
+						AND
+						SCEN_SECTION = #{scen_section}
+						AND
+						MDL_ID = #{mdl_id}
+					) A
+					</when>
+				</choose>
+			WHERE
+				INDI_ID = #{indi_id}
+				<choose>
+					<when test="refCategory eq 'IC'.toString()">
+						<choose>
+							<when test="space_info eq 'SPA01'.toString()">
+							AND DISTRICT_CD LIKE #{district_info} || '%'
+							</when>
+							<when test="space_info eq 'SPA02'.toString()">
+							AND DISTRICT_CD LIKE #{district_info} || '%'
+							</when>
+							<when test="space_info eq 'SPA03'.toString()">
+							AND DISTRICT_CD LIKE SUBSTR(#{district_info}, 1, 2) || '%'
+							</when>
+						</choose>
+					</when>
+					<otherwise>
+					AND DISTRICT_CD LIKE #{district_info} || '%'
+					</otherwise>
+				</choose>
+		),
+		
+		INDI_DATA_SET AS(
+			SELECT
+				DISTRICT_CD,
+				INDI_VAL,
+				INDI_YEAR
+			FROM
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				
+					<choose>
+						<when test="refCategory eq 'IC'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						FROM
+							(
+							SELECT
+								CASE A.INDI_SPACE
+									WHEN 'SPA01' THEN A.DISTRICT_CD
+									WHEN 'SPA02' THEN B.DISTRICT_CD
+									WHEN 'SPA03' THEN B.DISTRICT_CD
+								END AS DISTRICT_CD,
+								A.INDI_VAL,
+								A.INDI_YEAR,
+								A.INDI_SPACE
+							FROM
+								TABLE_DATA_SET A,
+								(SELECT * FROM DISTRICT_EMD WHERE DISTRICT_CD LIKE #{district_info} || '%') B
+							) C
+						GROUP BY
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						) D
+						</when>
+						<otherwise>
+						TABLE_DATA_SET
+						</otherwise>
+					</choose>
+				
+				</when>
+				<otherwise>
+				
+					<choose>
+						<when test="refCategory eq 'IC'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						FROM
+							(
+							SELECT
+								CASE A.INDI_SPACE
+									WHEN 'SPA01' THEN A.DISTRICT_CD
+									WHEN 'SPA02' THEN A.DISTRICT_CD
+									WHEN 'SPA03' THEN B.DISTRICT_CD
+								END AS DISTRICT_CD,
+								A.INDI_VAL,
+								A.INDI_YEAR,
+								A.INDI_SPACE
+							FROM
+								TABLE_DATA_SET A,
+								(SELECT * FROM DISTRICT_SGG WHERE DISTRICT_CD LIKE #{district_info} || '%') B
+							) C
+						GROUP BY
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						) A
+						</when>
+						<when test="refCategory eq 'IU'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_YEAR,
+							INDI_VAL
+						FROM
+							TABLE_DATA_SET
+						) A
+						</when>
+						<when test="refCategory eq 'SC'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_YEAR,
+							SUM(INDI_VAL) AS INDI_VAL
+						FROM
+							(
+							SELECT
+								SUBSTR(DISTRICT_CD, 1, 5) AS DISTRICT_CD,
+								INDI_VAL,
+								INDI_YEAR
+							FROM
+								TABLE_DATA_SET
+							) B
+							
+						GROUP BY
+							DISTRICT_CD, INDI_YEAR
+						) A
+						</when>
+					</choose>
+				</otherwise>
+			</choose>
+		),
+		
+		INDI_VAL_SET AS(
+			SELECT
+				DISTRICT_CD,
+				CASE
+					WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+					ELSE INDI_VAL
+				END AS INDI_VAL,
+				CASE
+					WHEN INDI_YEAR IS NULL THEN (SELECT INDI_YEAR FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+					ELSE INDI_YEAR
+				END AS INDI_YEAR
+			FROM
+				(
+				SELECT
+					DISTRICT_CD,
+					CASE
+						WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = #{district_info} AND INDI_ID = #{indi_id})
+						ELSE INDI_VAL
+					END AS INDI_VAL,
+					CASE
+						WHEN INDI_YEAR IS NULL THEN (SELECT INDI_YEAR FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+						ELSE INDI_YEAR
+					END AS INDI_YEAR
+				FROM
+					INDI_DATA_SET A
+				) B
+		),
+		
+		INDI_RESULT_SET AS(
+			SELECT
+				*,
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				(SELECT DISTRICT_NM FROM DISTRICT_EMD WHERE DISTRICT_CD = A.DISTRICT_CD) AS DISTRICT_NM
+				</when>
+				<otherwise>
+				(SELECT DISTRICT_NM FROM DISTRICT_SGG WHERE DISTRICT_CD = A.DISTRICT_CD) AS DISTRICT_NM
+				</otherwise>
+			</choose>
+			FROM
+				INDI_VAL_SET A
+			WHERE
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				LENGTH(DISTRICT_CD) = 7
+				</when>
+				<otherwise>
+				LENGTH(DISTRICT_CD) = 5
+				</otherwise>
+			</choose>
+		)
+		<choose>
+			<when test="download == null">
+				SELECT
+					*
+				FROM
+					(
+					SELECT
+						ROW_NUMBER() OVER(ORDER BY DISTRICT_CD ASC) AS RNUM,
+						*
+					FROM
+						INDI_RESULT_SET
+					LIMIT #{endRow}
+					) A
+				OFFSET #{startRow}
+			</when>
+			<otherwise>
+				SELECT
+					ROW_NUMBER() OVER(ORDER BY DISTRICT_CD ASC) AS RNUM,
+					*
+				FROM
+					INDI_RESULT_SET
+			</otherwise>
+		</choose>
+		
+	</select>
+	
+	<select id="getReferenceIndicatorInfoTotCnt" parameterType="map" resultType="int">
+		
+		WITH TABLE_DATA_SET AS(
+			SELECT
+				*
+			FROM
+				<choose>
+					<when test="refCategory eq 'IC'.toString()">
+					(
+					SELECT
+						A.*,
+						B.INDI_SPACE
+					FROM
+						INDICATOR_DATA A
+					INNER JOIN
+						INDICATOR_LIST B
+					ON
+						A.INDI_ID = B.INDI_ID
+					) C
+					</when>
+					<when test="refCategory eq 'IU'.toString()">
+					INDICATOR_DATA_USER
+					</when>
+					<when test="refCategory eq 'SC'.toString()">
+					(
+					SELECT
+						SCEN_ID AS INDI_ID,
+						DISTRICT_CD,
+						SCEN_VAL AS INDI_VAL,
+						SCEN_YEAR,
+						SCEN_SECTION,
+						MDL_ID,
+						VALUE_YEAR AS INDI_YEAR
+					FROM
+						SCENARIO_DATA
+					WHERE
+						SCEN_YEAR = #{scen_year}
+						AND
+						SCEN_SECTION = #{scen_section}
+						AND
+						MDL_ID = #{mdl_id}
+					) A
+					</when>
+				</choose>
+			WHERE
+				INDI_ID = #{indi_id}
+				<choose>
+					<when test="refCategory eq 'IC'.toString()">
+						<choose>
+							<when test="space_info eq 'SPA01'.toString()">
+							AND DISTRICT_CD LIKE #{district_info} || '%'
+							</when>
+							<when test="space_info eq 'SPA02'.toString()">
+							AND DISTRICT_CD LIKE #{district_info} || '%'
+							</when>
+							<when test="space_info eq 'SPA03'.toString()">
+							AND DISTRICT_CD LIKE SUBSTR(#{district_info}, 1, 2) || '%'
+							</when>
+						</choose>
+					</when>
+					<otherwise>
+					AND DISTRICT_CD LIKE #{district_info} || '%'
+					</otherwise>
+				</choose>
+		),
+		
+		INDI_DATA_SET AS(
+			SELECT
+				DISTRICT_CD,
+				INDI_VAL,
+				INDI_YEAR
+			FROM
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				
+					<choose>
+						<when test="refCategory eq 'IC'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						FROM
+							(
+							SELECT
+								CASE A.INDI_SPACE
+									WHEN 'SPA01' THEN A.DISTRICT_CD
+									WHEN 'SPA02' THEN B.DISTRICT_CD
+									WHEN 'SPA03' THEN B.DISTRICT_CD
+								END AS DISTRICT_CD,
+								A.INDI_VAL,
+								A.INDI_YEAR,
+								A.INDI_SPACE
+							FROM
+								TABLE_DATA_SET A,
+								(SELECT * FROM DISTRICT_EMD WHERE DISTRICT_CD LIKE #{district_info} || '%') B
+							) C
+						GROUP BY
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						) D
+						</when>
+						<otherwise>
+						TABLE_DATA_SET
+						</otherwise>
+					</choose>
+				
+				</when>
+				<otherwise>
+				
+					<choose>
+						<when test="refCategory eq 'IC'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						FROM
+							(
+							SELECT
+								CASE A.INDI_SPACE
+									WHEN 'SPA01' THEN A.DISTRICT_CD
+									WHEN 'SPA02' THEN A.DISTRICT_CD
+									WHEN 'SPA03' THEN B.DISTRICT_CD
+								END AS DISTRICT_CD,
+								A.INDI_VAL,
+								A.INDI_YEAR,
+								A.INDI_SPACE
+							FROM
+								TABLE_DATA_SET A,
+								(SELECT * FROM DISTRICT_SGG WHERE DISTRICT_CD LIKE #{district_info} || '%') B
+							) C
+						GROUP BY
+							DISTRICT_CD,
+							INDI_VAL,
+							INDI_YEAR,
+							INDI_SPACE
+						) A
+						</when>
+						<when test="refCategory eq 'IU'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_YEAR,
+							INDI_VAL
+						FROM
+							TABLE_DATA_SET
+						) A
+						</when>
+						<when test="refCategory eq 'SC'.toString()">
+						(
+						SELECT
+							DISTRICT_CD,
+							INDI_YEAR,
+							SUM(INDI_VAL) AS INDI_VAL
+						FROM
+							(
+							SELECT
+								SUBSTR(DISTRICT_CD, 1, 5) AS DISTRICT_CD,
+								INDI_VAL,
+								INDI_YEAR
+							FROM
+								TABLE_DATA_SET
+							) B
+							
+						GROUP BY
+							DISTRICT_CD, INDI_YEAR
+						) A
+						</when>
+					</choose>
+				</otherwise>
+			</choose>
+		),
+		
+		INDI_VAL_SET AS(
+			SELECT
+				DISTRICT_CD,
+				CASE
+					WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2) AND INDI_ID = #{indi_id})
+					ELSE INDI_VAL
+				END AS INDI_VAL,
+				INDI_YEAR
+			FROM
+				(
+				SELECT
+					DISTRICT_CD,
+					CASE
+						WHEN INDI_VAL IS NULL THEN (SELECT INDI_VAL FROM INDICATOR_DATA WHERE DISTRICT_CD = #{district_info} AND INDI_ID = #{indi_id})
+						ELSE INDI_VAL
+					END AS INDI_VAL,
+					INDI_YEAR
+				FROM
+					INDI_DATA_SET A
+				) B
+		),
+		
+		INDI_RESULT_SET AS(
+			SELECT
+				*,
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				(SELECT DISTRICT_NM FROM DISTRICT_EMD WHERE DISTRICT_CD = A.DISTRICT_CD) AS DISTRICT_NM
+				</when>
+				<otherwise>
+				(SELECT DISTRICT_NM FROM DISTRICT_SGG WHERE DISTRICT_CD = A.DISTRICT_CD) AS DISTRICT_NM
+				</otherwise>
+			</choose>
+			FROM
+				INDI_VAL_SET A
+			WHERE
+			<choose>
+				<when test="tableCategory eq 'emd'.toString()">
+				LENGTH(DISTRICT_CD) = 7
+				</when>
+				<otherwise>
+				LENGTH(DISTRICT_CD) = 5
+				</otherwise>
+			</choose>
+		)
+		SELECT
+			COUNT(*)
+		FROM
+			INDI_RESULT_SET
+		
+	</select>
+	
+	<select id="getSectorWeight" parameterType="map" resultType="hashMap">
+		SELECT
+			CE_WEIGHT,
+			CS_WEIGHT,
+			AA_WEIGHT
+		FROM
+			ITEM_LIST_USER
+		WHERE
+			ITEM_ID = #{item_id}
+			AND
+			USER_ID = #{userName}
+	</select>
+	
+	<select id="getDistrictInfoForExcel" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+			(
+			<choose>
+			<when test="tableCategory eq 'emd'.toString()">
+				SELECT
+					A.DISTRICT_NM AS SD_NM,
+					B.DISTRICT_NM AS SGG_NM
+				FROM
+					(SELECT DISTRICT_NM FROM DISTRICT_SD WHERE DISTRICT_CD = SUBSTR(#{district_info}, 1, 2)) A,
+					(SELECT DISTRICT_NM FROM DISTRICT_SGG WHERE DISTRICT_CD = #{district_info}) B
+			</when>
+			<otherwise>
+				SELECT
+					DISTRICT_NM AS SD_NM,
+					'전체' AS SGG_NM
+				FROM
+					DISTRICT_SD
+				WHERE
+					DISTRICT_CD = #{district_info}
+			</otherwise>
+			</choose>
+			) A
+	</select>
+	
+	<select id="getItemInfoForExcel" parameterType="map" resultType="hashMap">
+		SELECT
+			*
+		FROM
+		<choose>
+			<when test="header eq 'TL'.toString()">
+			ITEM_LIST
+			</when>
+			<otherwise>
+			ITEM_LIST_USER
+			</otherwise>
+		</choose>
+		WHERE
+			ITEM_ID = #{item_id}
+	</select>
+	
+	<select id="isNullData" parameterType="String" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			INDICATOR_DATA
+		WHERE
+			INDI_ID = #{_parameter}
+			AND
+			INDI_VAL IS NULL
+	</select>
+	<!-- 취약성평가 기후 및 시나리오 전용 옵션 SELECT -->
+	<select id="selectClimateOption" parameterType="EgovMap"
+		resultType="EgovMap">
+		SELECT DISTINCT 
+		<choose>
+			<when test="model != null and model != ''">
+				YEAR_ID,(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = YEAR_ID) as YEAR_NM
+			</when>
+			<when test="section != null and section != ''">
+				MDL_ID, (SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = MDL_ID) as MDL_NM
+			</when>
+			<otherwise>
+				RCP_ID,(SELECT CODE_NM FROM REF_CODE WHERE CODE_ID = RCP_ID) as RCP_NM
+			</otherwise>
+		</choose>
+		FROM 
+			CLIMATE_OPTION_USER
+		WHERE ITEM_ID = #{item}
+			<if test="model != null and model != ''">
+				AND MDL_ID = #{model} 
+			</if>
+			<if test="section != null and section != ''">
+				AND RCP_ID = #{section}
+			</if>
+		ORDER BY 1 ASC			
+	</select>
+</mapper>
