@@ -10,37 +10,20 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="031a8695-6267-40f8-b330-a850f54a6718" name="변경" comment="">
-      <change beforePath="$PROJECT_DIR$/.classpath" beforeDir="false" afterPath="$PROJECT_DIR$/.classpath" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.settings/org.eclipse.core.resources.prefs" beforeDir="false" afterPath="$PROJECT_DIR$/.settings/org.eclipse.core.resources.prefs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.settings/org.eclipse.wst.common.component" beforeDir="false" afterPath="$PROJECT_DIR$/.settings/org.eclipse.wst.common.component" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.settings/org.eclipse.wst.common.project.facet.core.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.settings/org.eclipse.wst.common.project.facet.core.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/vestap/adm/climate/estimation/AdmEstimationController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/vestap/adm/climate/estimation/AdmEstimationController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/vestap/adm/climate/estimation/AdmEstimationDAO.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/vestap/adm/climate/estimation/AdmEstimationDAO.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/vestap/adm/climate/estimation/AdmEstimationService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/vestap/adm/climate/estimation/AdmEstimationService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/vestap/adm/climate/estimation/AdmEstimationServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/vestap/adm/climate/estimation/AdmEstimationServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/vestap/adm/sys/indicator/SysIndicatorController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/vestap/adm/sys/indicator/SysIndicatorController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/vestap/adm/sys/indicator/SysIndicatorDAO.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/vestap/adm/sys/indicator/SysIndicatorDAO.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/vestap/adm/sys/indicator/SysIndicatorService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/vestap/adm/sys/indicator/SysIndicatorService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/vestap/adm/sys/indicator/SysIndicatorServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/vestap/adm/sys/indicator/SysIndicatorServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/vestap/egov/cmm/EgovWebUtil.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/vestap/egov/cmm/EgovWebUtil.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/vestap/sys/cmm/util/Common.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/vestap/sys/cmm/util/Common.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/egovframework/egovProps/globals.properties" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/egovframework/egovProps/globals.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/egovframework/sqlmap/mapper/admin/estimation-SQL.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/egovframework/sqlmap/mapper/admin/estimation-SQL.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/log4j2.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/log4j2.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/webapp/WEB-INF/jsp/admin/climate/estimation/view.jsp" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/webapp/WEB-INF/jsp/admin/climate/estimation/view.jsp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/webapp/index.jsp" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/webapp/index.jsp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/webapp/resources/css/developer/style-custom.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/webapp/resources/css/developer/style-custom.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/webapp/resources/css/developer/style.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/webapp/resources/css/developer/style.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/webapp/resources/js/developer/system-indicator-data.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/webapp/resources/js/developer/system-indicator-data.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/webapp/resources/js/developer/system-indicator-meta.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/webapp/resources/js/developer/system-indicator-meta.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/webapp/resources/js/developer/system-indicator.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/webapp/resources/js/developer/system-indicator.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/webapp/resources/openlayers/map.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/webapp/resources/openlayers/map.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="LogFilters">
     <option name="FILTER_ERRORS" value="false" />
@@ -50,6 +33,7 @@
     <option name="CUSTOM_FILTER" />
   </component>
   <component name="ProjectId" id="2Ko5nrHcO7pMm9mPHk6MfwDbVvR" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -63,7 +47,7 @@
     <property name="node.js.detected.package.tslint" value="true" />
     <property name="node.js.selected.package.eslint" value="(autodetect)" />
     <property name="node.js.selected.package.tslint" value="(autodetect)" />
-    <property name="settings.editor.selected.configurable" value="editor.preferences.fonts.default" />
+    <property name="settings.editor.selected.configurable" value="preferences.externalDependencies" />
   </component>
   <component name="RunDashboard">
     <option name="excludedTypes">
@@ -166,24 +150,6 @@
     <configuration>C:\Users\admin\AppData\Roaming\Subversion</configuration>
     <supportedVersion>125</supportedVersion>
   </component>
-  <component name="SvnFileUrlMappingImpl">
-    <option name="myMappingRoots">
-      <list>
-        <SvnCopyRootSimple>
-          <option name="myVcsRoot" value="D:\eGovFrameDev-3.6.0-64bit\workspace\vestap" />
-          <option name="myCopyRoot" value="D:\eGovFrameDev-3.6.0-64bit\workspace\vestap" />
-        </SvnCopyRootSimple>
-      </list>
-    </option>
-    <option name="myMoreRealMappingRoots">
-      <list>
-        <SvnCopyRootSimple>
-          <option name="myVcsRoot" value="D:\eGovFrameDev-3.6.0-64bit\workspace\vestap" />
-          <option name="myCopyRoot" value="D:\eGovFrameDev-3.6.0-64bit\workspace\vestap" />
-        </SvnCopyRootSimple>
-      </list>
-    </option>
-  </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="디폴트 작업">
       <changelist id="031a8695-6267-40f8-b330-a850f54a6718" name="변경" comment="" />
@@ -200,11 +166,38 @@
       <workItem from="1676421085690" duration="19066000" />
       <workItem from="1676507626988" duration="10893000" />
       <workItem from="1676594532600" duration="15922000" />
-      <workItem from="1676852813251" duration="21420000" />
+      <workItem from="1676852813251" duration="22639000" />
+      <workItem from="1676939671802" duration="20182000" />
+      <workItem from="1677026039608" duration="870000" />
+      <workItem from="1677028143380" duration="1457000" />
+      <workItem from="1677112350632" duration="1014000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.History.Properties">
+    <option name="COLUMN_ID_ORDER">
+      <list>
+        <option value="Default.Root" />
+        <option value="Default.Author" />
+        <option value="Default.Date" />
+        <option value="Default.Subject" />
+        <option value="Space.CommitStatus" />
+      </list>
+    </option>
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
   </component>
 </project>

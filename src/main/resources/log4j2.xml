@@ -60,12 +60,12 @@
         
 		<!-- log SQL with timing information, post execution -->
 		<!-- SQL 연결 상태 출력 -->
-		<Logger name="jdbc.connection" level="OFF" additivity="false">
+		<Logger name="jdbc.connection" level="INFO" additivity="false">
 			<AppenderRef ref="console" />
 		</Logger>
 		
 		<!-- SQL만 출력 -->
-		<Logger name="jdbc.sqlonly" level="OFF" additivity="false">
+		<Logger name="jdbc.sqlonly" level="INFO" additivity="false">
 			<AppenderRef ref="console" />
 		</Logger>
 		

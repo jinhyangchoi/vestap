@@ -361,8 +361,15 @@
 		<include refid="wholeEmd" />
 		<![CDATA[
 			SELECT * FROM E13
-			WHERE DISTRICT_CD like #{sido}||'%'
 		]]>
+		<choose>
+			<when test="!@org.springframework.util.ObjectUtils@isEmpty(sigungu)">
+				WHERE DISTRICT_CD like #{sigungu}||'%'
+			</when>
+			<otherwise>
+				WHERE DISTRICT_CD like #{sido}||'%'
+			</otherwise>
+		</choose>
 	</select>
 	
 	<select id="selectEstimationIndiWeight" parameterType="EgovMap" resultType="EgovMap">
@@ -398,9 +405,16 @@
 					END AS INDI_NM, DISTRICT_CD,
 					TRUNC(COALESCE(WEIGHT_GNRL_VALUE,0):: NUMERIC, 2)AS WEIGHT_GNRL_VALUE
 			FROM E08
-			WHERE DISTRICT_CD like #{sido}||'%'
-			ORDER BY SECTOR_ID, INDI_ID, DISTRICT_CD
 		]]>
+		<choose>
+			<when test="!@org.springframework.util.ObjectUtils@isEmpty(sigungu)">
+				WHERE DISTRICT_CD like #{sigungu}||'%'
+			</when>
+			<otherwise>
+				WHERE DISTRICT_CD like #{sido}||'%'
+			</otherwise>
+		</choose>
+		ORDER BY SECTOR_ID, INDI_ID, DISTRICT_CD
 	</select>
 	
 	<select id="selectWholeSd"	parameterType="EgovMap" resultType="EgovMap">
@@ -661,7 +675,15 @@
 		JOIN
 		DISTRICT_EMD B
 		ON (A.DISTRICT_CD = B.DISTRICT_CD)
-		ORDER BY A.DISTRICT_CD ASC
 		]]>
+		<choose>
+			<when test="!@org.springframework.util.ObjectUtils@isEmpty(sigungu)">
+				WHERE A.DISTRICT_CD like #{sigungu}||'%'
+			</when>
+			<otherwise>
+				WHERE A.DISTRICT_CD like #{sido}||'%'
+			</otherwise>
+		</choose>
+		ORDER BY A.DISTRICT_CD ASC
 	</select>
 </mapper>

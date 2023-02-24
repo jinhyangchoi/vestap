@@ -159,8 +159,8 @@
 		var form = document.createElement("form");
 		form.setAttribute("name","reloadForm");
 		form.setAttribute("method","get");
-		form.setAttribute("action","//localhost:1010/loginPage.do");
-// 		form.setAttribute("action","//210.113.102.223:9080/loginPage.do");
+		//form.setAttribute("action","//localhost:8080/loginPage.do");
+ 		form.setAttribute("action","//119.204.88.214:8080/loginPage.do");
 		//form.setAttribute("action","//210.113.102.129:9080/loginPage.do");
 		//form.setAttribute("action","//vestap.kei.re.kr/loginPage.do");
 		

@@ -864,7 +864,9 @@ function fn_estimationTotal(){
 				/*시군구 종합지수창*/
 				for(var i in list){
 					var html = '';
-
+					climVal.length = 0;
+					sensVal.length = 0;
+					adptVal.length = 0;
 					climVal.push("data1");
 					sensVal.push("data2");
 					adptVal.push("data3");
@@ -1218,7 +1220,7 @@ function fn_radarSectorRedraw(type){
 			
 		}else{
 			fn_radarDraw(climIndi, climValue);
-			
+
 			chart.unload({
 				   ids: ["data2", "data3"],
 				   done: function() {
@@ -1250,7 +1252,7 @@ function fn_radarSectorRedraw(type){
 									
 		}else{
 			fn_radarDraw(sensIndi,sensValue);
-			
+
 			chart.unload({
 				   ids: ["data1", "data3"],
 				   done: function() {
@@ -1268,9 +1270,8 @@ function fn_radarSectorRedraw(type){
 		var adaptIndi = new Array();
 		adaptValue.push("data3");
 		adaptIndi.push("x");
-		console.log(indiList);
-		console.log(adapt);
-		for(var i = climCnt+sensCnt+1; i< adapt.length; i++){
+
+		for(var i = climCnt+sensCnt+1; i< climCnt+sensCnt+adaptCnt + 1 ; i++){
 			adaptIndi.push(indiList[i]);
 			adaptValue.push(adapt[i]);
 		}
@@ -1282,7 +1283,7 @@ function fn_radarSectorRedraw(type){
 			
 		}else{
 			fn_radarDraw(adaptIndi,adaptValue);
-			console.log(adaptIndi,adaptValue);
+
 			chart.unload({
 				   ids: ["data1", "data2"],
 				   done: function() {
